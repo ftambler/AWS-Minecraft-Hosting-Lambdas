@@ -4,7 +4,7 @@ import random
 import uuid
 
 def lambda_handler(event, context):
-    # Services
+    # Servicess
     ec2 = boto3.client('ec2', region_name=region)
     ssm = boto3.client('ssm', region_name=region)
     dynamodb = boto3.resource('dynamodb', region_name=region)
