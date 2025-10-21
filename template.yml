@@ -48,7 +48,7 @@ Resources:
         - Key: Name
           Value: ServerPipelineSG
 
-  # --- EFS ---
+  # --- EFS --
   EFSFileSystem:
     Type: AWS::EFS::FileSystem
     Properties:
