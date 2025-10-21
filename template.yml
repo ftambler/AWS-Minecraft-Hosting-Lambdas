@@ -1,0 +1,151 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Server creation flow with API → Lambda → SQS → Lambda → DynamoDB → EFS and SSM params (LabRole)
+
+Parameters:
+  LabRoleArn:
+    Type: String
+    Description: ARN of the LabRole to use for Lambda execution (e.g. arn:aws:iam::123456789012:role/LabRole)
+  SubnetId:
+    Type: String
+    Description: Subnet ID to create EFS MountTarget in (from your lab VPC)
+  SecurityGroupId:
+    Type: String
+    Description: Security Group ID used for Lambda/EFSMount (from your lab)
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 30
+    MemorySize: 256
+
+Resources:
+  # -----------------------
+  # DynamoDB Table
+  # -----------------------
+  ServerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ServerRegistry
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: serverId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: serverId
+          KeyType: HASH
+
+  # -----------------------
+  # SQS Queue
+  # -----------------------
+  ServerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ServerCreationQueue
+
+  # -----------------------
+  # EFS File System + AccessPoint + MountTarget
+  # -----------------------
+  MyEFS:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: true
+      PerformanceMode: generalPurpose
+
+  MyEFSAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref MyEFS
+      PosixUser:
+        Uid: "1000"
+        Gid: "1000"
+      RootDirectory:
+        Path: /lambda
+        CreationInfo:
+          OwnerUid: "1000"
+          OwnerGid: "1000"
+          Permissions: "755"
+
+  # MountTarget: requires a subnet and security group from your lab environment.
+  # Note: Some lab environments restrict creating MountTargets. If that fails, you can
+  # leave this resource out and create mount targets manually in the console (if allowed).
+  MyEFSMountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref MyEFS
+      SubnetId: !Ref SubnetId
+      SecurityGroups:
+        - !Ref SecurityGroupId
+
+  # -----------------------
+  # SSM Parameters (store IDs)
+  # Names follow /{service}/{region/name}/id
+  # -----------------------
+  SsmServerQueueId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/sqs/${AWS::Region}/ServerCreationQueue/id"
+      Type: String
+      Value: !Ref ServerQueue
+      Description: SQS Queue URL for server creation
+
+  SsmServerTableId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/dynamodb/${AWS::Region}/ServerRegistry/id"
+      Type: String
+      Value: !Ref ServerTable
+      Description: DynamoDB table name for server registry
+
+  SsmEfsId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/efs/${AWS::Region}/my-efs/id"
+      Type: String
+      Value: !Ref MyEFS
+      Description: EFS FileSystemId
+
+  # -----------------------
+  # Lambda 1: serverHandler (triggered by API Gateway)
+  # -----------------------
+  ServerHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: serverHandler
+      CodeUri: lambdas/serverHandler/
+      Handler: app.lambda_handler
+      Role: !Ref LabRoleArn
+      Environment:
+        Variables:
+          SSM_QUEUE_PARAM_NAME: !Sub "/sqs/${AWS::Region}/ServerCreationQueue/id"
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /server
+            Method: POST
+
+  # -----------------------
+  # Lambda 2: createServer (triggered by SQS)
+  # -----------------------
+  CreateServerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: createServer
+      CodeUri: lambdas/createServer/
+      Handler: app.lambda_handler
+      Role: !Ref LabRoleArn
+      Environment:
+        Variables:
+          SSM_TABLE_PARAM_NAME: !Sub "/dynamodb/${AWS::Region}/ServerRegistry/id"
+          SSM_EFS_PARAM_NAME: !Sub "/efs/${AWS::Region}/my-efs/id"
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ServerQueue.Arn
+
+Outputs:
+  ApiGatewayEndpoint:
+    Description: "If created, this will be the API Gateway invoke URL (see SAM deploy output)"
+    Value: !Sub "https://{restapi-id}.execute-api.${AWS::Region}.amazonaws.com/Prod" # placeholder

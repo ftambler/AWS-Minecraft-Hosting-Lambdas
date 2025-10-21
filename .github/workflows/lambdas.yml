@@ -1,22 +1,50 @@
-name: Deploy Lambda Functions
+name: Deploy AWS SAM stack
 
 on:
   push:
-    branches: [ "main" ]
-    paths:
-      - "lambdas/*.py"
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
-      - uses: aws-actions/setup-sam@v2
-      - uses: aws-actions/configure-aws-credentials@v1
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python (SAM CLI needs it)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AWS SAM CLI
+        run: |
+          pip install aws-sam-cli
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
-      - run: sam build --use-container
-      - run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build SAM application
+        run: sam build
+
+      - name: Deploy SAM application
+        run: |
+          sam deploy \
+            --stack-name server-pipeline \
+            --capabilities CAPABILITY_IAM \
+            --region ${{ secrets.AWS_REGION }} \
+            --parameter-overrides \
+              LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
+              SubnetId=${{ secrets.SUBNET_ID }} \
+              SecurityGroupId=${{ secrets.SECURITY_GROUP_ID }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
