@@ -2,19 +2,33 @@ import boto3
 import base64
 import random
 import uuid
+import json
 
 def lambda_handler(event, context):
+    try:
+        message = event['Records'][0]['body']
+        if isinstance(message, str):
+            event_data = json.loads(message)
+        else:
+            event_data = message
+    except (KeyError, json.JSONDecodeError) as e:
+        print(f"Error parsing SQS message: {e}")
+        return {
+            'statusCode': 400,
+            'body': f'Invalid SQS message: {e}'
+        }
+
+    # Event variables
+    region = event_data['region']
+    server_version = event_data['version']
+    server_type = event_data['type']
+    server_owner = event_data['ownerUUID']
+    server_flags = getFlags(server_type)
+
     # Servicess
     ec2 = boto3.client('ec2', region_name=region)
     ssm = boto3.client('ssm', region_name=region)
     dynamodb = boto3.resource('dynamodb', region_name=region)
-
-    # Event variables
-    region = event['server-region']
-    server_version = event['server-version']
-    server_type = event['server-type']
-    server_flags = getFlags(server_type)
-    server_owner = event['ownerUUID']
 
     # Get EFS, SG, Subnet, S3, VPC
     efs_id = ssm.get_parameter(Name=f"/efs/{region}/id")['Parameter']['Value']

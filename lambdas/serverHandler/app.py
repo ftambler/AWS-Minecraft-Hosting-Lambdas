@@ -6,7 +6,7 @@ def lambda_handler(event, context):
     ssm = boto3.client('ssm')
     sqs = boto3.client('sqs')
     
-    sqs_url = ssm.get_parameter(Name="/sqs/minecraft-operations")['Parameter']['Value']
+    sqs_url = ssm.get_parameter(Name="/sqs/us-east-1/url")['Parameter']['Value']
 
     operation = event.get('operation')
 
@@ -34,7 +34,7 @@ def lambda_handler(event, context):
                 'type': event['server-type'],
                 'version': event['server-version'],
                 'region': event['server-region'],
-                'owner': event['ownerUUID']
+                'ownerUUID': event['ownerUUID']
             }
         case 'DELETE' | 'TURNON' | 'TURNOFF':
             message_body = {

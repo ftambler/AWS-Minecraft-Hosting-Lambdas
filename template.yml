@@ -160,6 +160,14 @@ Resources:
       Type: String
       Value: !Ref ServerTable
 
+  SSMParameterSecurityGroupId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/sg/${AWS::Region}/id"
+      Type: String
+      Value: !Ref ServerSecurityGroup
+      Description: Security Group ID for Minecraft EC2 instances
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint
