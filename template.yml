@@ -1,28 +1,79 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Server creation flow with API → Lambda → SQS → Lambda → DynamoDB → EFS and SSM params (LabRole)
+Description: Server pipeline with API Gateway, SQS, Lambdas, EC2, EFS, and DynamoDB
 
 Parameters:
   LabRoleArn:
     Type: String
-    Description: ARN of the LabRole to use for Lambda execution (e.g. arn:aws:iam::123456789012:role/LabRole)
-  SubnetId:
-    Type: String
-    Description: Subnet ID to create EFS MountTarget in (from your lab VPC)
-  SecurityGroupId:
-    Type: String
-    Description: Security Group ID used for Lambda/EFSMount (from your lab)
-
-Globals:
-  Function:
-    Runtime: python3.11
-    Timeout: 30
-    MemorySize: 256
+    Description: ARN of LabRole provided by AWS Academy
 
 Resources:
-  # -----------------------
-  # DynamoDB Table
-  # -----------------------
+  # --- VPC and Networking ---
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: ServerPipelineVPC
+
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: ServerPipelineSubnet
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Lambda, EC2, and EFS access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          CidrIp: 0.0.0.0/0  # NFS
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0  # SSH (optional)
+      Tags:
+        - Key: Name
+          Value: ServerPipelineSG
+
+  # --- EFS ---
+  EFSFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: false
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+      FileSystemTags:
+        - Key: Name
+          Value: ServerPipelineEFS
+
+  EFSMountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Ref Subnet
+      SecurityGroups:
+        - !Ref SecurityGroup
+
+  # --- SQS ---
+  ServerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: serverQueue
+
+  # --- DynamoDB ---
   ServerTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -35,117 +86,88 @@ Resources:
         - AttributeName: serverId
           KeyType: HASH
 
-  # -----------------------
-  # SQS Queue
-  # -----------------------
-  ServerQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: ServerCreationQueue
-
-  # -----------------------
-  # EFS File System + AccessPoint + MountTarget
-  # -----------------------
-  MyEFS:
-    Type: AWS::EFS::FileSystem
-    Properties:
-      Encrypted: true
-      PerformanceMode: generalPurpose
-
-  MyEFSAccessPoint:
-    Type: AWS::EFS::AccessPoint
-    Properties:
-      FileSystemId: !Ref MyEFS
-      PosixUser:
-        Uid: "1000"
-        Gid: "1000"
-      RootDirectory:
-        Path: /lambda
-        CreationInfo:
-          OwnerUid: "1000"
-          OwnerGid: "1000"
-          Permissions: "755"
-
-  # MountTarget: requires a subnet and security group from your lab environment.
-  # Note: Some lab environments restrict creating MountTargets. If that fails, you can
-  # leave this resource out and create mount targets manually in the console (if allowed).
-  MyEFSMountTarget:
-    Type: AWS::EFS::MountTarget
-    Properties:
-      FileSystemId: !Ref MyEFS
-      SubnetId: !Ref SubnetId
-      SecurityGroups:
-        - !Ref SecurityGroupId
-
-  # -----------------------
-  # SSM Parameters (store IDs)
-  # Names follow /{service}/{region/name}/id
-  # -----------------------
-  SsmServerQueueId:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/sqs/${AWS::Region}/ServerCreationQueue/id"
-      Type: String
-      Value: !Ref ServerQueue
-      Description: SQS Queue URL for server creation
-
-  SsmServerTableId:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/dynamodb/${AWS::Region}/ServerRegistry/id"
-      Type: String
-      Value: !Ref ServerTable
-      Description: DynamoDB table name for server registry
-
-  SsmEfsId:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/efs/${AWS::Region}/my-efs/id"
-      Type: String
-      Value: !Ref MyEFS
-      Description: EFS FileSystemId
-
-  # -----------------------
-  # Lambda 1: serverHandler (triggered by API Gateway)
-  # -----------------------
-  ServerHandlerFunction:
+  # --- Lambda: serverHandler ---
+  ServerHandler:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: serverHandler
       CodeUri: lambdas/serverHandler/
       Handler: app.lambda_handler
+      Runtime: python3.11
       Role: !Ref LabRoleArn
       Environment:
         Variables:
-          SSM_QUEUE_PARAM_NAME: !Sub "/sqs/${AWS::Region}/ServerCreationQueue/id"
-      Events:
-        ApiEvent:
-          Type: Api
-          Properties:
-            Path: /server
-            Method: POST
+          QUEUE_URL: !Ref ServerQueue
 
-  # -----------------------
-  # Lambda 2: createServer (triggered by SQS)
-  # -----------------------
-  CreateServerFunction:
+  # --- Lambda: createServer ---
+  CreateServer:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: createServer
       CodeUri: lambdas/createServer/
       Handler: app.lambda_handler
+      Runtime: python3.11
       Role: !Ref LabRoleArn
       Environment:
         Variables:
-          SSM_TABLE_PARAM_NAME: !Sub "/dynamodb/${AWS::Region}/ServerRegistry/id"
-          SSM_EFS_PARAM_NAME: !Sub "/efs/${AWS::Region}/my-efs/id"
+          TABLE_NAME: !Ref ServerTable
+          EFS_ID: !Ref EFSFileSystem
+          SECURITY_GROUP_ID: !Ref SecurityGroup
+          SUBNET_ID: !Ref Subnet
       Events:
         SQSTrigger:
           Type: SQS
           Properties:
             Queue: !GetAtt ServerQueue.Arn
 
+  # --- API Gateway ---
+  ServerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ServerPipelineAPI
+      StageName: Prod
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: "Server Pipeline API"
+        paths:
+          /create:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ServerHandler.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+
+  # --- SSM Parameters ---
+  ParamEFSId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /efs/${AWS::Region}/id
+      Type: String
+      Value: !Ref EFSFileSystem
+
+  ParamQueueUrl:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /sqs/${AWS::Region}/url
+      Type: String
+      Value: !Ref ServerQueue
+
+  ParamTableName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /dynamodb/${AWS::Region}/table
+      Type: String
+      Value: !Ref ServerTable
+
 Outputs:
-  ApiGatewayEndpoint:
-    Description: "If created, this will be the API Gateway invoke URL (see SAM deploy output)"
-    Value: !Sub "https://{restapi-id}.execute-api.${AWS::Region}.amazonaws.com/Prod" # placeholder
+  ApiUrl:
+    Description: API Gateway endpoint
+    Value: !Sub https://${ServerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/create
+
+  EFSId:
+    Value: !Ref EFSFileSystem
+  SubnetId:
+    Value: !Ref Subnet
+  SecurityGroupId:
+    Value: !Ref SecurityGroup

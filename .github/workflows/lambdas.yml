@@ -39,13 +39,11 @@ jobs:
 
       - name: Deploy SAM application
         run: |
+          sam build
           sam deploy \
             --stack-name server-pipeline \
             --capabilities CAPABILITY_IAM \
             --region ${{ secrets.AWS_REGION }} \
-            --parameter-overrides \
-              LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
-              SubnetId=${{ secrets.SUBNET_ID }} \
-              SecurityGroupId=${{ secrets.SECURITY_GROUP_ID }} \
+            --parameter-overrides LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
