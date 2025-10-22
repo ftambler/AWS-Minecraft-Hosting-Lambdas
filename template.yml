@@ -168,6 +168,14 @@ Resources:
       Value: !Ref SecurityGroup
       Description: Security Group ID for Minecraft EC2 instances
 
+  ParamSubnetId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/subnet/${AWS::Region}/id"
+      Type: String
+      Value: !Ref Subnet
+      Description: Subnet ID for Server EC2 / Lambda networking
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint

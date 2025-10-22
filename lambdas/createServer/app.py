@@ -3,6 +3,7 @@ import base64
 import random
 import uuid
 import json
+from botocore.exceptions import ClientError
 
 def lambda_handler(event, context):
     try:
@@ -125,13 +126,27 @@ def getFlags(server_type: str):
 
 
 def getSubnet(region: str):
-    ec2 = boto3.client('ec2', region_name=region)
-    ssm = boto3.client('ssm', region_name=region)
-    vpc_id = ssm.get_parameter(Name=f"/vpc/{region}/id")['Parameter']['Value']
+    ec2 = boto3.client("ec2", region_name=region)
+    ssm = boto3.client("ssm", region_name=region)
 
-    response = ec2.describe_subnets(Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}])
-    subnets = response['Subnets']
-    return random.choice(subnets)['SubnetId']
+    subnet_param = f"/subnet/{region}/id"
+
+    try:
+        subnet_id = ssm.get_parameter(Name=subnet_param)["Parameter"]["Value"]
+    except ClientError as e:
+        raise RuntimeError(f"Failed to get Subnet ID from SSM ({subnet_param}): {e}")
+
+    # Validate the subnet actually exists in this region
+    try:
+        response = ec2.describe_subnets(SubnetIds=[subnet_id])
+        subnets = response.get("Subnets", [])
+    except ClientError as e:
+        raise RuntimeError(f"Failed to describe Subnets: {e}")
+
+    if not subnets:
+        raise RuntimeError(f"Subnet not found: {subnet_id} in {region}")
+
+    return subnet_id
 
 
 def get_latest_ami(region: str):
