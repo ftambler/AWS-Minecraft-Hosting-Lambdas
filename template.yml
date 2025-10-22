@@ -165,7 +165,7 @@ Resources:
     Properties:
       Name: !Sub "/sg/${AWS::Region}/id"
       Type: String
-      Value: !Ref ServerSecurityGroup
+      Value: !Ref SecurityGroup
       Description: Security Group ID for Minecraft EC2 instances
 
 Outputs:
