@@ -41,7 +41,7 @@ def lambda_handler(event, context):
     image_id = get_latest_ami(region)
 
     # Check DynamoDB for existing server
-    table = dynamodb.Table('minecraft_servers')
+    table = dynamodb.Table('ServerRegistry')
     serverUUID = get_or_create_server_uuid(table, server_owner)
 
     # Build user data
