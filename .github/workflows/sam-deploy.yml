@@ -41,7 +41,7 @@ jobs:
         run: |
           sam deploy \
             --stack-name server-pipeline \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_NAMED_IAM \
             --region ${{ secrets.AWS_REGION }} \
             --parameter-overrides LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
             --no-confirm-changeset \
