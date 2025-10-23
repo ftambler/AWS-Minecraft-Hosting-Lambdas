@@ -77,7 +77,10 @@ def lambda_handler(event, context):
             'AssociatePublicIpAddress': True,
             'Groups': security_groups
         }],
-        'UserData': user_data
+        'UserData': user_data,
+        'IamInstanceProfile': {
+            'Name': "EC2ServerInstanceProfile"
+        }
     }
 
     try:

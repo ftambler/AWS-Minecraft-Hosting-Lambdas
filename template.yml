@@ -52,7 +52,7 @@ Resources:
         - Key: Name
           Value: ServerPipelineSG
 
-    # --- Internet Access ---
+  # --- Internet Access ---
   InternetGateway:
     Type: AWS::EC2::InternetGateway
 
@@ -172,6 +172,14 @@ Resources:
                 httpMethod: POST
                 type: aws_proxy
 
+  # --- IAM ---
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+      InstanceProfileName: EC2ServerInstanceProfile
+
   # --- SSM Parameters ---
   ParamEFSId:
     Type: AWS::SSM::Parameter
@@ -209,6 +217,15 @@ Resources:
       Type: String
       Value: !Ref Subnet
       Description: Subnet ID for Server EC2 / Lambda networking
+
+  ParamMinecraftVersionBucket:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/s3/minecraft-versions/id"
+      Type: String
+      Value: 760476980933-bucketcito #TODO Hardcodeado
+      Description: Subnet ID for Server EC2 / Lambda networking
+
 
 Outputs:
   ApiUrl:
