@@ -177,7 +177,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref EC2Role
+        - LabRole
       InstanceProfileName: EC2ServerInstanceProfile
 
   # --- SSM Parameters ---
