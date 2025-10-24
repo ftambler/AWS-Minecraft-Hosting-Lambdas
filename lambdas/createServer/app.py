@@ -1,3 +1,4 @@
+import os
 import boto3
 import base64
 import random
@@ -6,24 +7,11 @@ import json
 from botocore.exceptions import ClientError
 
 def lambda_handler(event, context):
-    try:
-        message = event['Records'][0]['body']
-        if isinstance(message, str):
-            event_data = json.loads(message)
-        else:
-            event_data = message
-    except (KeyError, json.JSONDecodeError) as e:
-        print(f"Error parsing SQS message: {e}")
-        return {
-            'statusCode': 400,
-            'body': f'Invalid SQS message: {e}'
-        }
-
     # Event variables
-    region = event_data['region']
-    server_version = event_data['version']
-    server_type = event_data['type']
-    server_owner = event_data['ownerUUID']
+    region = event['region']
+    server_version = event['version']
+    server_type = event['type']
+    server_owner = event['ownerUUID']
     server_flags = getFlags(server_type)
 
     # Servicess
@@ -32,16 +20,20 @@ def lambda_handler(event, context):
     dynamodb = boto3.resource('dynamodb', region_name=region)
 
     # Get EFS, SG, Subnet, S3, VPC
-    efs_id = ssm.get_parameter(Name=f"/efs/{region}/id")['Parameter']['Value']
-    security_groups = [ssm.get_parameter(Name=f"/sg/{region}/id")['Parameter']['Value']]
-    subnet = getSubnet(region)
+    # efs_id = ssm.get_parameter(Name=f"/efs/{region}/id")['Parameter']['Value']
+    # security_groups = [ssm.get_parameter(Name=f"/sg/{region}/id")['Parameter']['Value']]
+    # subnet = getSubnet(region)
+    # minecraft_jars = ssm.get_parameter(Name="/s3/minecraft-versions/id")['Parameter']['Value']
+    efs_id = os.getenv('EFS_ID')
+    security_groups = [os.getenv('SECURITY_GROUP_ID')]
+    subnet = os.getenv("SUBNET_ID")
     minecraft_jars = ssm.get_parameter(Name="/s3/minecraft-versions/id")['Parameter']['Value']
 
     # Get latest Amazon Linux 2023 AMI
     image_id = get_latest_ami(region)
 
     # Check DynamoDB for existing server
-    table = dynamodb.Table('ServerRegistry')
+    table = dynamodb.Table(os.getenv('TABLE_NAME'))
     serverUUID = get_or_create_server_uuid(table, server_owner)
 
     # Build user data
@@ -161,14 +153,14 @@ def get_latest_ami(region: str):
 
 def get_or_create_server_uuid(table, server_owner: str):
     # Try to fetch from DynamoDB
-    response = table.get_item(Key={'server_name': server_owner})
+    response = table.get_item(Key={'serverId': server_owner})
     if 'Item' in response:
         return response['Item']['serverUUID']
 
     # Otherwise create one
     serverUUID = str(uuid.uuid4())
     table.put_item(Item={
-        'server_name': server_owner,
+        'serverId': server_owner,
         'serverUUID': serverUUID
     })
     return serverUUID

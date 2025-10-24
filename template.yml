@@ -108,17 +108,41 @@ Resources:
       QueueName: serverQueue
 
   # --- DynamoDB ---
-  ServerTable:
+  UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ServerRegistry
+      TableName: App
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: serverId
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
           AttributeType: S
       KeySchema:
-        - AttributeName: serverId
+        - AttributeName: PK
           KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: false
+      Tags:
+        - Key: Environment
+          Value: dev
+        - Key: Owner
+          Value: CloudFormation
+
+  # ServerTable:
+  #   Type: AWS::DynamoDB::Table
+  #   Properties:
+  #     TableName: ServerRegistry
+  #     BillingMode: PAY_PER_REQUEST
+  #     AttributeDefinitions:
+  #       - AttributeName: serverId
+  #         AttributeType: S
+  #     KeySchema:
+  #       - AttributeName: serverId
+  #         KeyType: HASH
 
   # --- Lambda: serverHandler ---
   ServerHandler:
@@ -139,6 +163,22 @@ Resources:
     Properties:
       FunctionName: createServer
       CodeUri: lambdas/createServer/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ServerTable
+          EFS_ID: !Ref EFSFileSystem
+          SECURITY_GROUP_ID: !Ref SecurityGroup
+          SUBNET_ID: !Ref Subnet
+  
+  OperationSwitch:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: OperationSwitch
+      CodeUri: lambdas/pperationSwitch/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
@@ -224,7 +264,7 @@ Resources:
       Name: !Sub "/s3/minecraft-versions/id"
       Type: String
       Value: 760476980933-bucketcito #TODO Hardcodeado
-      Description: Subnet ID for Server EC2 / Lambda networking
+      Description: Bucket Name for Minecraft Jars
 
 
 Outputs:
