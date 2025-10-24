@@ -178,7 +178,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: OperationSwitch
-      CodeUri: lambdas/pperationSwitch/
+      CodeUri: lambdas/operationSwitch/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
