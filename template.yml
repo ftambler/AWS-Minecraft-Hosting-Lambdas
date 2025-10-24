@@ -108,7 +108,7 @@ Resources:
       QueueName: serverQueue
 
   # --- DynamoDB ---
-  UsersTable:
+  ServerTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: App
