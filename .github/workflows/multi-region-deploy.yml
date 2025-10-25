@@ -14,8 +14,9 @@ jobs:
       contents: read
 
     env:
-      GLOBAL_REGION: ${{ secrets.AWS_REGION }} 
+      GLOBAL_REGION: ${{ secrets.AWS_REGION }}
       REGIONAL_REGIONS: "sa-east-1 us-west-2"
+      SAM_S3_BUCKET: aws-sam-cli-managed-default-samclisourcebucket-prvmtpecpsjh
 
     steps:
       - name: Checkout code
@@ -29,7 +30,7 @@ jobs:
       - name: Install AWS SAM CLI
         run: pip install aws-sam-cli
 
-      - name: Configure AWS credentials (global)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -52,13 +53,13 @@ jobs:
             --parameter-overrides LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --resolve-s3
+            --s3-bucket ${{ env.SAM_S3_BUCKET }}
 
       # === DEPLOY REGIONAL STACKS ===
       - name: Deploy Regional SAM stacks
         run: |
           for REGION in $REGIONAL_REGIONS; do
-            sam build --template-file infra/regional/template.yml
+            sam build --template-file infra/regional/template.yml --build-dir .aws-sam/build-$REGION
             sam deploy \
               --stack-name server-pipeline-$REGION \
               --capabilities CAPABILITY_NAMED_IAM \
@@ -68,5 +69,5 @@ jobs:
                 GlobalRegion=${{ env.GLOBAL_REGION }} \
               --no-confirm-changeset \
               --no-fail-on-empty-changeset \
-              --resolve-s3
+              --s3-bucket ${{ env.SAM_S3_BUCKET }}
           done
