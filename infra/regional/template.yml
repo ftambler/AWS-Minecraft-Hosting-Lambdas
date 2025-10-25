@@ -23,7 +23,7 @@ Resources:
         - Key: Name
           Value: !Sub ServerPipelineVPC-${AWS::Region}
 
-  Subnet:
+  PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
@@ -32,7 +32,18 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs '']
       Tags:
         - Key: Name
-          Value: !Sub ServerPipelineSubnet-${AWS::Region}
+          Value: !Sub ServerPipelinePublicSubnet-${AWS::Region}
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ServerPipelinePrivateSubnet-${AWS::Region}
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -71,7 +82,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
 
-  DefaultRoute:
+  PublicRoute:
     Type: AWS::EC2::Route
     DependsOn: InternetGatewayAttachment
     Properties:
@@ -82,10 +93,10 @@ Resources:
   PublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref Subnet
+      SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
 
-   # --- NAT Gateway (for Lambda Internet Access) ---
+  # --- NAT Gateway (for Lambda Internet Access) ---
   ElasticIP:
     Type: AWS::EC2::EIP
     Properties:
@@ -130,7 +141,7 @@ Resources:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref EFSFileSystem
-      SubnetId: !Ref Subnet
+      SubnetId: !Ref PrivateSubnet
       SecurityGroups:
         - !Ref SecurityGroup
     
@@ -144,7 +155,6 @@ Resources:
           OwnerUid: "1000"
           OwnerGid: "1000"
           Permissions: "755"
-
 
   # --- Lambdas (region-specific) ---
   CreateServer:
@@ -160,7 +170,7 @@ Resources:
         SecurityGroupIds:
           - !Ref SecurityGroup
         SubnetIds:
-          - !Ref Subnet
+          - !Ref PrivateSubnet
       FileSystemConfigs:
         - Arn: !GetAtt MyEFSAccessPoint.Arn
           LocalMountPath: /mnt/efs
@@ -168,7 +178,7 @@ Resources:
         Variables:
           EFS_ID: !Ref EFSFileSystem
           SECURITY_GROUP_ID: !Ref SecurityGroup
-          SUBNET_ID: !Ref Subnet
+          SUBNET_ID: !Ref PrivateSubnet
           REGION: !Ref AWS::Region
           GLOBAL_REGION: !Ref GlobalRegion
           EFS_PATH: /mnt/efs
@@ -186,7 +196,7 @@ Resources:
         Variables:
           EFS_ID: !Ref EFSFileSystem
           SECURITY_GROUP_ID: !Ref SecurityGroup
-          SUBNET_ID: !Ref Subnet
+          SUBNET_ID: !Ref PrivateSubnet
           REGION: !Ref AWS::Region
           GLOBAL_REGION: !Ref GlobalRegion
 
@@ -204,7 +214,7 @@ Resources:
           EFS_ID: !Ref EFSFileSystem
           REGION: !Ref AWS::Region
 
-  # --- SSM Parameters (region-specific IDs) ---
+  # --- Regional SSM Parameters (mirrors for globals) ---
   ParamEFSId:
     Type: AWS::SSM::Parameter
     Properties:
@@ -212,7 +222,7 @@ Resources:
       Type: String
       Value: !Ref EFSFileSystem
 
-  SSMParameterSecurityGroupId:
+  ParamSecurityGroupId:
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Sub "/sg/${AWS::Region}/id"
@@ -224,12 +234,14 @@ Resources:
     Properties:
       Name: !Sub "/subnet/${AWS::Region}/id"
       Type: String
-      Value: !Ref Subnet
+      Value: !Ref PrivateSubnet
 
 Outputs:
-  EFSId:
-    Value: !Ref EFSFileSystem
-  SubnetId:
-    Value: !Ref Subnet
+  VPCId:
+    Value: !Ref VPC
+  PrivateSubnetId:
+    Value: !Ref PrivateSubnet
   SecurityGroupId:
     Value: !Ref SecurityGroup
+  EFSId:
+    Value: !Ref EFSFileSystem
