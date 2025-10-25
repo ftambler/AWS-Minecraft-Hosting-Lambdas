@@ -64,14 +64,13 @@ jobs:
 
             echo "=== Deploying regional stack for $REGION ==="
             sam deploy \
-              --template-file infra/regional/template.yml \
               --stack-name server-pipeline-$REGION \
               --capabilities CAPABILITY_NAMED_IAM \
               --region $REGION \
               --parameter-overrides \
                 LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
                 GlobalRegion=${{ env.GLOBAL_REGION }} \
-              --s3-bucket ${{ env.SAM_S3_BUCKET }} \
               --no-confirm-changeset \
-              --no-fail-on-empty-changeset
+              --no-fail-on-empty-changeset \
+              --resolve-s3
           done
