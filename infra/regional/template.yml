@@ -121,6 +121,23 @@ Resources:
           SUBNET_ID: !Ref Subnet
           REGION: !Ref AWS::Region
           GLOBAL_REGION: !Ref GlobalRegion
+  
+  TurnOnServer:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub turnOnServer-${AWS::Region}
+      CodeUri: ../../lambdas/turnOnServer/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 60
+      Environment:
+        Variables:
+          EFS_ID: !Ref EFSFileSystem
+          SECURITY_GROUP_ID: !Ref SecurityGroup
+          SUBNET_ID: !Ref Subnet
+          REGION: !Ref AWS::Region
+          GLOBAL_REGION: !Ref GlobalRegion
 
   DeleteServer:
     Type: AWS::Serverless::Function
