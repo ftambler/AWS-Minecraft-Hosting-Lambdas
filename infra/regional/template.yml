@@ -138,7 +138,7 @@ Resources:
   MyEFSAccessPoint:
     Type: AWS::EFS::AccessPoint
     Properties:
-      FileSystemId: !Ref MyEFS
+      FileSystemId: !Ref EFSFileSystem
       RootDirectory:
         Path: "/"
         CreationInfo:
@@ -163,7 +163,7 @@ Resources:
         SubnetIds:
           - !Ref Subnet
       FileSystemConfigs:
-        - Arn: !GetAtt EFSAccessPoint.Arn
+        - Arn: !GetAtt MyEFSAccessPoint.Arn
           LocalMountPath: /mnt/efs
       Environment:
         Variables:
