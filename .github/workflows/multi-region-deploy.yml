@@ -15,7 +15,7 @@ jobs:
 
     env:
       GLOBAL_REGION: ${{ secrets.AWS_REGION }}
-      REGIONAL_REGIONS: "us-east-1 us-west-2"
+      REGIONAL_REGIONS: "us-west-2" #Separe with whitespace for more region
       SAM_S3_BUCKET: aws-sam-cli-managed-default-samclisourcebucket-prvmtpecpsjh
 
     steps:
