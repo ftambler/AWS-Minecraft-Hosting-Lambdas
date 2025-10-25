@@ -7,6 +7,10 @@ Parameters:
     Type: String
     Description: ARN of LabRole provided by AWS Academy
 
+  GlobalRegion:
+    Type: String
+    Description: The region where the global stack resources (like DynamoDB and SSM parameters) reside
+
 Resources:
   # --- VPC and Networking ---
   VPC:
@@ -116,7 +120,7 @@ Resources:
           SECURITY_GROUP_ID: !Ref SecurityGroup
           SUBNET_ID: !Ref Subnet
           REGION: !Ref AWS::Region
-          GLOBAL_REGION: us-east-1
+          GLOBAL_REGION: !Ref GlobalRegion
 
   DeleteServer:
     Type: AWS::Serverless::Function
