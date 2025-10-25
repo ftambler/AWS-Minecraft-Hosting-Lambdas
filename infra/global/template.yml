@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Global infrastructure stack (Dynamo, API, SQS, OperationSwitch)
+
+Parameters:
+  LabRoleArn:
+    Type: String
+    Description: ARN of LabRole provided by AWS Academy
+
+Resources:
+  # --- SQS (shared across regions)
+  ServerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: globalServerQueue
+
+  # --- DynamoDB (global app state)
+  ServerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: App
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: false
+      Tags:
+        - Key: Environment
+          Value: global
+        - Key: Owner
+          Value: CloudFormation
+
+  # --- Lambdas ---
+
+  # --- Lambda: ServerMessagesHandler
+  ServerHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: serverHandler
+      CodeUri: lambdas/serverMessagesHandler/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref ServerQueue
+
+  # --- Lambda: OperationSwitch (routes operations + regions)
+  OperationSwitch:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: OperationSwitch
+      CodeUri: lambdas/operationSwitch/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 30
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ServerQueue.Arn
+
+  # --- API Gateway (frontend entrypoint)
+  ServerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ServerPipelineAPI
+      StageName: Prod
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: "Server Pipeline API"
+        paths:
+          /create:
+            post:
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OperationSwitch.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+
+  # --- SSM Parameters for regionless resources ---
+  ParamQueueUrl:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /sqs/global/url
+      Type: String
+      Value: !Ref ServerQueue
+
+  ParamTableName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /dynamodb/global/table
+      Type: String
+      Value: !Ref ServerTable
+
+  ParamMinecraftVersionBucket:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/global/s3/minecraft-versions/id"
+      Type: String
+      Value: 760476980933-bucketcito #TODO Hardcodeado
+      Description: Bucket Name for Minecraft Jars
+
+Outputs:
+  ApiUrl:
+    Description: Global API Gateway endpoint
+    Value: !Sub https://${ServerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/create
+  TableName:
+    Value: !Ref ServerTable
+  QueueUrl:
+    Value: !Ref ServerQueue

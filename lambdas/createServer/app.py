@@ -11,23 +11,20 @@ def lambda_handler(event, context):
     region = event['region']
     server_version = event['version']
     server_type = event['type']
-    server_owner = event['ownerUUID']
+    server_owner = event['owner']
     server_flags = getFlags(server_type)
 
-    # Servicess
+    # Services
+    global_region = os.getenv('GLOBAL_REGION')
     ec2 = boto3.client('ec2', region_name=region)
-    ssm = boto3.client('ssm', region_name=region)
+    ssm = boto3.client('ssm', region_name=global_region)
     dynamodb = boto3.resource('dynamodb', region_name=region)
 
     # Get EFS, SG, Subnet, S3, VPC
-    # efs_id = ssm.get_parameter(Name=f"/efs/{region}/id")['Parameter']['Value']
-    # security_groups = [ssm.get_parameter(Name=f"/sg/{region}/id")['Parameter']['Value']]
-    # subnet = getSubnet(region)
-    # minecraft_jars = ssm.get_parameter(Name="/s3/minecraft-versions/id")['Parameter']['Value']
     efs_id = os.getenv('EFS_ID')
     security_groups = [os.getenv('SECURITY_GROUP_ID')]
     subnet = os.getenv("SUBNET_ID")
-    minecraft_jars = ssm.get_parameter(Name="/s3/minecraft-versions/id")['Parameter']['Value']
+    minecraft_jars = ssm.get_parameter(Name="/global/s3/minecraft-versions/id")['Parameter']['Value']
 
     # Get latest Amazon Linux 2023 AMI
     image_id = get_latest_ami(region)
@@ -110,12 +107,12 @@ def getFlags(server_type: str):
             return "-Xms1G -Xmx2G"
         case "t2.large":
             return "-Xms2G -Xmx4G"
-        case "t3.large":
-            return "-Xms2G -Xmx4G"
-        case "t3.xlarge":
-            return "-Xms4G -Xmx8G"
-        case "t3.2xlarge":
-            return "-Xms8G -Xmx16G"
+        # case "t3.large":
+        #     return "-Xms2G -Xmx4G"
+        # case "t3.xlarge":
+        #     return "-Xms4G -Xmx8G"
+        # case "t3.2xlarge":
+        #     return "-Xms8G -Xmx16G"
         case _:
             return "-Xms1G -Xmx2G"
 

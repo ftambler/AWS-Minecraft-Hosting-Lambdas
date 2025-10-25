@@ -1,0 +1,163 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Regional stack for Minecraft servers (EFS, VPC, EC2, Lambdas)
+
+Parameters:
+  LabRoleArn:
+    Type: String
+    Description: ARN of LabRole provided by AWS Academy
+
+Resources:
+  # --- VPC and Networking ---
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub ServerPipelineVPC-${AWS::Region}
+
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ServerPipelineSubnet-${AWS::Region}
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow EC2/Lambda/EFS access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          CidrIp: 0.0.0.0/0  # NFS
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 25565
+          ToPort: 25565
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ServerPipelineSG-${AWS::Region}
+
+  # --- Internet Gateway & Routing ---
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # --- EFS ---
+  EFSFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: false
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub ServerPipelineEFS-${AWS::Region}
+
+  EFSMountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Ref Subnet
+      SecurityGroups:
+        - !Ref SecurityGroup
+
+  # --- Lambdas (region-specific) ---
+  CreateServer:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub createServer-${AWS::Region}
+      CodeUri: lambdas/createServer/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 60
+      Environment:
+        Variables:
+          EFS_ID: !Ref EFSFileSystem
+          SECURITY_GROUP_ID: !Ref SecurityGroup
+          SUBNET_ID: !Ref Subnet
+          REGION: !Ref AWS::Region
+          GLOBAL_REGION: us-east-1
+
+  DeleteServer:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub deleteServer-${AWS::Region}
+      CodeUri: lambdas/deleteServer/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 60
+      Environment:
+        Variables:
+          EFS_ID: !Ref EFSFileSystem
+          REGION: !Ref AWS::Region
+
+  # --- SSM Parameters (region-specific IDs) ---
+  ParamEFSId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /efs/${AWS::Region}/id
+      Type: String
+      Value: !Ref EFSFileSystem
+
+  SSMParameterSecurityGroupId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/sg/${AWS::Region}/id"
+      Type: String
+      Value: !Ref SecurityGroup
+
+  ParamSubnetId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/subnet/${AWS::Region}/id"
+      Type: String
+      Value: !Ref Subnet
+
+Outputs:
+  EFSId:
+    Value: !Ref EFSFileSystem
+  SubnetId:
+    Value: !Ref Subnet
+  SecurityGroupId:
+    Value: !Ref SecurityGroup

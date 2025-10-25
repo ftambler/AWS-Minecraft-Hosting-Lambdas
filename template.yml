@@ -132,18 +132,6 @@ Resources:
         - Key: Owner
           Value: CloudFormation
 
-  # ServerTable:
-  #   Type: AWS::DynamoDB::Table
-  #   Properties:
-  #     TableName: ServerRegistry
-  #     BillingMode: PAY_PER_REQUEST
-  #     AttributeDefinitions:
-  #       - AttributeName: serverId
-  #         AttributeType: S
-  #     KeySchema:
-  #       - AttributeName: serverId
-  #         KeyType: HASH
-
   # --- Lambda: serverHandler ---
   ServerHandler:
     Type: AWS::Serverless::Function

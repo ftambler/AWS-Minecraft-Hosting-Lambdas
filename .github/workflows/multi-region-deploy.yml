@@ -1,0 +1,72 @@
+name: Deploy AWS SAM stacks
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      GLOBAL_REGION: ${{ secrets.AWS_REGION }} 
+      REGIONAL_REGIONS: "sa-east-1 us-west-2"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+
+      - name: Configure AWS credentials (global)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.GLOBAL_REGION }}
+
+      # === DEPLOY GLOBAL STACK ===
+      - name: Build Global SAM stack
+        working-directory: infra/global
+        run: sam build
+
+      - name: Deploy Global SAM stack
+        working-directory: infra/global
+        run: |
+          sam deploy \
+            --stack-name server-pipeline-global \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.GLOBAL_REGION }} \
+            --parameter-overrides LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3
+
+      # === DEPLOY REGIONAL STACKS ===
+      - name: Deploy Regional SAM stacks
+        run: |
+          for REGION in $REGIONAL_REGIONS; do
+            sam build --template-file infra/regional/template.yml
+            sam deploy \
+              --stack-name server-pipeline-$REGION \
+              --capabilities CAPABILITY_NAMED_IAM \
+              --region $REGION \
+              --parameter-overrides \
+                LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
+                GlobalRegion=${{ env.GLOBAL_REGION }} \
+              --no-confirm-changeset \
+              --no-fail-on-empty-changeset \
+              --resolve-s3
+          done

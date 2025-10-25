@@ -3,23 +3,22 @@ import json
 import os
 
 def lambda_handler(event, context):    
-    ssm = boto3.client('ssm')
     sqs = boto3.client('sqs')
     
-    sqs_url = ssm.get_parameter(Name="/sqs/us-east-1/url")['Parameter']['Value']
-
+    sqs_url = os.getenv('QUEUE_URL')
     operation = event.get('operation')
 
     if not operation:
         return {'statusCode': 400, 'body': json.dumps('Missing operation field')}
 
     required_keys = {
-        'CREATE': ['server-type', 'server-version', 'server-region', 'ownerUUID'],
-        'DELETE': ['ownerUUID'],
-        'TURNON': ['ownerUUID'],
-        'TURNOFF': ['ownerUUID']
+        'CREATE': ['server-type', 'server-version', 'server-region', 'owner'],
+        'DELETE': ['owner'],
+        'TURNON': ['owner'],
+        'TURNOFF': ['owner']
     }
 
+    # Check all required fields are in the message
     for key in required_keys.get(operation, []):
         if key not in event:
             return {
@@ -27,19 +26,22 @@ def lambda_handler(event, context):
                 'body': json.dumps(f"Missing required parameter: {key}")
             }
 
+    #Build message
     match operation:
         case 'CREATE':
             message_body = {
                 'operation': 'CREATE',
-                'type': event['server-type'],
-                'version': event['server-version'],
-                'region': event['server-region'],
-                'ownerUUID': event['ownerUUID']
+                'payload': {
+                    'type': event['server-type'],
+                    'version': event['server-version'],
+                    'region': event['server-region'],
+                    'owner': event['owner']
+                }
             }
         case 'DELETE' | 'TURNON' | 'TURNOFF':
             message_body = {
                 'operation': operation,
-                'owner': event['ownerUUID']
+                'owner': event['owner']
             }
         case _:
             return {
@@ -53,7 +55,7 @@ def lambda_handler(event, context):
             MessageBody=json.dumps(message_body),
             MessageAttributes={
                 'Operation': {'DataType': 'String', 'StringValue': operation},
-                'Owner': {'DataType': 'String', 'StringValue': event['ownerUUID']}
+                'Owner': {'DataType': 'String', 'StringValue': event['owner']}
             }
         )
         return {

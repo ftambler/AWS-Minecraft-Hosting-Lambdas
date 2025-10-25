@@ -1,18 +1,7 @@
-import os
 import json
 import boto3
 
-lambda_client = boto3.client("lambda")
-
-# Map operation names to target Lambda function names
-ROUTE_MAP = {
-    "CREATE": "createServer",
-    "DELETE": "deleteServer",
-    # "LIST_SERVERS": "listServers"
-}
-
 def lambda_handler(event, context):
-    # If triggered by SQS, messages come in event['Records']
     messages = event.get("Records", [event])
     results = []
 
@@ -22,24 +11,35 @@ def lambda_handler(event, context):
             body = json.loads(body)
 
         operation = body.get("operation")
+        region = body.get("region", "us-east-1")
         payload = body.get("payload", {})
 
-        if operation not in ROUTE_MAP:
+        # Construct name dynamically
+        function_base = {
+            "CREATE": "createServer",
+            "DELETE": "deleteServer",
+            "TURNON": "turnOnServer",
+            "TURNOFF": "turnOffServer"
+        }.get(operation)
+
+        if not function_base:
             print(f"Unknown operation: {operation}")
             continue
 
-        target_lambda = ROUTE_MAP[operation]
-        print(f"Routing to: {target_lambda}")
+        function_name = f"{function_base}-{region}"
+        print(f"Routing {operation} to {function_name} in {region}")
 
+        lambda_client = boto3.client("lambda", region_name=region)
         response = lambda_client.invoke(
-            FunctionName=target_lambda,
-            InvocationType="Event",  # async call (use 'RequestResponse' if you want to wait)
+            FunctionName=function_name,
+            InvocationType="Event",
             Payload=json.dumps(payload)
         )
 
         results.append({
             "operation": operation,
-            "target": target_lambda,
+            "region": region,
+            "target": function_name,
             "status": response["StatusCode"]
         })
 
