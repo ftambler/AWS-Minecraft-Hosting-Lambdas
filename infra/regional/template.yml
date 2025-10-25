@@ -85,6 +85,37 @@ Resources:
       SubnetId: !Ref Subnet
       RouteTableId: !Ref PublicRouteTable
 
+  # --- VPC Endpoints for Private AWS Service Access ---
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
+
+  DynamoDBEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
+
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref Subnet
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      PrivateDnsEnabled: true
+
   # --- EFS ---
   EFSFileSystem:
     Type: AWS::EFS::FileSystem
