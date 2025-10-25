@@ -104,19 +104,16 @@ Resources:
       SecurityGroups:
         - !Ref SecurityGroup
     
-  EFSAccessPoint:
+  MyEFSAccessPoint:
     Type: AWS::EFS::AccessPoint
     Properties:
-      FileSystemId: !Ref EFSFileSystem
-      PosixUser:
-        Uid: "1000"
-        Gid: "1000"
+      FileSystemId: !Ref MyEFS
       RootDirectory:
+        Path: "/"
         CreationInfo:
           OwnerUid: "1000"
           OwnerGid: "1000"
           Permissions: "755"
-        Path: "/lambda"
 
 
   # --- Lambdas (region-specific) ---
