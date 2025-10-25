@@ -59,15 +59,19 @@ jobs:
       - name: Deploy Regional SAM stacks
         run: |
           for REGION in $REGIONAL_REGIONS; do
+            echo "=== Building regional stack for $REGION ==="
             sam build --template-file infra/regional/template.yml --build-dir .aws-sam/build-$REGION
+
+            echo "=== Deploying regional stack for $REGION ==="
             sam deploy \
+              --template-file infra/regional/template.yml \
               --stack-name server-pipeline-$REGION \
               --capabilities CAPABILITY_NAMED_IAM \
               --region $REGION \
               --parameter-overrides \
                 LabRoleArn=${{ secrets.LAB_ROLE_ARN }} \
                 GlobalRegion=${{ env.GLOBAL_REGION }} \
+              --s3-bucket ${{ env.SAM_S3_BUCKET }} \
               --no-confirm-changeset \
-              --no-fail-on-empty-changeset \
-              --s3-bucket ${{ env.SAM_S3_BUCKET }}
+              --no-fail-on-empty-changeset
           done
