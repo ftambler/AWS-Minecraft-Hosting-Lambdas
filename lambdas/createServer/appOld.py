@@ -7,35 +7,31 @@ import json
 from botocore.exceptions import ClientError
 
 def lambda_handler(event, context):
-    user_email = event["owner"]
-
-    dynamodb_global = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
-    table = dynamodb_global.Table(os.environ["TABLE_NAME"])
-    
-    response = table.get_item(
-        Key={
-            "PK": f"USERS#{user_email}",
-            "SK": f"CONFIGPROFILE"
-        }
-    )
-    config = response.get("Item")
-
-    # Config Profile variables
-    region = config.get('Region')
-    serverUUID = config.get('ServerUUID')
-    server_type = config.get('Type')
+    # Event variables
+    region = event['region']
+    server_version = event['version']
+    server_type = event['type']
+    server_owner = event['owner']
     server_flags = getFlags(server_type)
 
     # Services
+    global_region = os.getenv('GLOBAL_REGION')
     ec2 = boto3.client('ec2', region_name=region)
+    ssm = boto3.client('ssm', region_name=global_region)
+    dynamodb = boto3.resource('dynamodb', region_name=region)
 
     # Get EFS, SG, Subnet, S3, VPC
     efs_id = os.getenv('EFS_ID')
     security_groups = [os.getenv('SECURITY_GROUP_ID')]
     subnet = os.getenv("SUBNET_ID")
+    minecraft_jars = ssm.get_parameter(Name="/global/s3/minecraft-versions/id")['Parameter']['Value']
 
     # Get latest Amazon Linux 2023 AMI
     image_id = get_latest_ami(region)
+
+    # Check DynamoDB for existing server
+    table = dynamodb.Table(os.getenv('TABLE_NAME'))
+    serverUUID = get_or_create_server_uuid(table, server_owner)
 
     # Build user data
     user_data = f"""#!/bin/bash
@@ -43,7 +39,17 @@ def lambda_handler(event, context):
     dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
     mkdir -p /mnt/efs
     mount -t efs -o tls {efs_id}:/ /mnt/efs/
-    cd /mnt/efs/{serverUUID}
+    cd /mnt/efs
+
+    if [ ! -d {serverUUID} ]; then
+        mkdir {serverUUID}
+        cd {serverUUID}
+        aws s3 cp s3://{minecraft_jars}/{server_version}/server.jar .
+        echo "eula=true" > eula.txt
+        chown ec2-user:ec2-user server.jar eula.txt
+    else
+        cd {serverUUID}
+    fi
 
     java {server_flags} -jar server.jar nogui
     """
@@ -77,15 +83,6 @@ def lambda_handler(event, context):
         instance.load()
         public_ip = instance.public_ip_address
 
-        table.put_item(Item={
-            "PK": f"USERS#{user_email}",
-            "SK": f"SERVER#{serverUUID}",
-            "InstanceId": instance_id,
-            "Region": region,
-            "PublicIp": instance.public_ip_address,
-            "LaunchedAt": instance.launch_time.isoformat()
-        })
-
         return {
             'statusCode': 200,
             'body': {
@@ -110,6 +107,12 @@ def getFlags(server_type: str):
             return "-Xms1G -Xmx2G"
         case "t2.large":
             return "-Xms2G -Xmx4G"
+        # case "t3.large":
+        #     return "-Xms2G -Xmx4G"
+        # case "t3.xlarge":
+        #     return "-Xms4G -Xmx8G"
+        # case "t3.2xlarge":
+        #     return "-Xms8G -Xmx16G"
         case _:
             return "-Xms1G -Xmx2G"
 
@@ -143,3 +146,18 @@ def get_latest_ami(region: str):
     # AWS publishes a parameter for the latest Amazon Linux 2023 AMI
     param = ssm.get_parameter(Name="/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
     return param['Parameter']['Value']
+
+
+def get_or_create_server_uuid(table, server_owner: str):
+    # Try to fetch from DynamoDB
+    response = table.get_item(Key={'serverId': server_owner})
+    if 'Item' in response:
+        return response['Item']['serverUUID']
+
+    # Otherwise create one
+    serverUUID = str(uuid.uuid4())
+    table.put_item(Item={
+        'serverId': server_owner,
+        'serverUUID': serverUUID
+    })
+    return serverUUID

@@ -88,6 +88,14 @@ Resources:
                 httpMethod: POST
                 type: aws_proxy
 
+  # --- Instance Profile
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - LabRole
+      InstanceProfileName: EC2ServerInstanceProfile
+
   # --- SSM Parameters for regionless resources ---
   ParamQueueUrl:
     Type: AWS::SSM::Parameter

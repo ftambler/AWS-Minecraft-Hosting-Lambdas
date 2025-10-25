@@ -1,163 +1,81 @@
 import os
 import boto3
-import base64
-import random
-import uuid
 import json
+import uuid
+import subprocess
 from botocore.exceptions import ClientError
 
+
 def lambda_handler(event, context):
-    # Event variables
-    region = event['region']
-    server_version = event['version']
-    server_type = event['type']
-    server_owner = event['owner']
-    server_flags = getFlags(server_type)
+    print("Received event:", event)
 
-    # Services
-    global_region = os.getenv('GLOBAL_REGION')
-    ec2 = boto3.client('ec2', region_name=region)
-    ssm = boto3.client('ssm', region_name=global_region)
-    dynamodb = boto3.resource('dynamodb', region_name=region)
+    user_email = event["owner"]
+    server_type = event["type"]
+    version = event["version"]
+    region = event["region"]
 
-    # Get EFS, SG, Subnet, S3, VPC
-    efs_id = os.getenv('EFS_ID')
-    security_groups = [os.getenv('SECURITY_GROUP_ID')]
-    subnet = os.getenv("SUBNET_ID")
-    minecraft_jars = ssm.get_parameter(Name="/global/s3/minecraft-versions/id")['Parameter']['Value']
+    server_uuid = str(uuid.uuid4())
+    table_name = os.environ["TABLE_NAME"]
 
-    # Get latest Amazon Linux 2023 AMI
-    image_id = get_latest_ami(region)
+    ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
+    dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
+    s3 = boto3.client("s3", region_name=os.environ["GLOBAL_REGION"])
+    
+    bucket_name = ssm.get_parameter(Name="/global/s3/minecraft-versions/id")['Parameter']['Value']
 
-    # Check DynamoDB for existing server
-    table = dynamodb.Table(os.getenv('TABLE_NAME'))
-    serverUUID = get_or_create_server_uuid(table, server_owner)
-
-    # Build user data
-    user_data = f"""#!/bin/bash
-    set -euxo pipefail
-    dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
-    mkdir -p /mnt/efs
-    mount -t efs -o tls {efs_id}:/ /mnt/efs/
-    cd /mnt/efs
-
-    if [ ! -d {serverUUID} ]; then
-        mkdir {serverUUID}
-        cd {serverUUID}
-        aws s3 cp s3://{minecraft_jars}/{server_version}/server.jar .
-        echo "eula=true" > eula.txt
-        chown ec2-user:ec2-user server.jar eula.txt
-    else
-        cd {serverUUID}
-    fi
-
-    java {server_flags} -jar server.jar nogui
-    """
-
-    # Launch EC2 instance
-    instance_params = {
-        'ImageId': image_id,
-        'InstanceType': server_type,
-        'MinCount': 1,
-        'MaxCount': 1,
-        'NetworkInterfaces': [{
-            'SubnetId': subnet,
-            'DeviceIndex': 0,
-            'AssociatePublicIpAddress': True,
-            'Groups': security_groups
-        }],
-        'UserData': user_data,
-        'IamInstanceProfile': {
-            'Name': "EC2ServerInstanceProfile"
-        }
+    # --- Create Config Profile in DynamoDB ---
+    table = dynamodb.Table(table_name)
+    config_item = {
+        "PK": f"USERS#{user_email}",
+        "SK": f"CONFIGPROFILE",
+        "ServerUUID": server_uuid,
+        "Type": server_type,
+        "Version": version,
+        "Region": region,
+        "ServerName": f"minecraft-{server_uuid[:8]}"
     }
 
     try:
-        response = ec2.run_instances(**instance_params)
-        instance_id = response['Instances'][0]['InstanceId']
+        table.put_item(Item=config_item)
+        print(f"Created DynamoDB config profile: {server_uuid}")
+    except ClientError as e:
+        return {"statusCode": 500, "body": f"Error writing to DynamoDB: {e}"}
 
-        # Wait until running and get IP
-        ec2_resource = boto3.resource('ec2', region_name=region)
-        instance = ec2_resource.Instance(instance_id)
-        instance.wait_until_running()
-        instance.load()
-        public_ip = instance.public_ip_address
+    # --- Mount EFS and Prepare Folder ---
+    efs_id = os.environ["EFS_ID"]
+    efs_mount_path = f"/mnt/efs/{server_uuid}"
 
-        return {
-            'statusCode': 200,
-            'body': {
-                'instance_id': instance_id,
-                'public_ip': public_ip,
-                'serverUUID': serverUUID
-            }
-        }
+    try:
+        # Ensure EFS mount point exists
+        subprocess.run(["mkdir", "-p", "/mnt/efs"], check=True)
+        subprocess.run(["mountpoint", "-q", "/mnt/efs"])  # Check if mounted
+    except Exception:
+        # Attempt to mount if not already
+        subprocess.run(["mkdir", "-p", "/mnt/efs"], check=True)
+        subprocess.run([
+            "mount", "-t", "efs", "-o", "tls", f"{efs_id}:/", "/mnt/efs"
+        ], check=True)
+
+    try:
+        subprocess.run(["mkdir", "-p", efs_mount_path], check=True)
+        print(f"Created EFS directory: {efs_mount_path}")
     except Exception as e:
-        print(f"Error launching EC2 instance: {e}")
-        return {
-            'statusCode': 500,
-            'body': f'Error launching EC2 instance: {e}'
-        }
+        return {"statusCode": 500, "body": f"Failed to create EFS directory: {e}"}
 
-
-def getFlags(server_type: str):
-    match server_type:
-        case "t2.small":
-            return "-Xms512M -Xmx1G"
-        case "t2.medium":
-            return "-Xms1G -Xmx2G"
-        case "t2.large":
-            return "-Xms2G -Xmx4G"
-        # case "t3.large":
-        #     return "-Xms2G -Xmx4G"
-        # case "t3.xlarge":
-        #     return "-Xms4G -Xmx8G"
-        # case "t3.2xlarge":
-        #     return "-Xms8G -Xmx16G"
-        case _:
-            return "-Xms1G -Xmx2G"
-
-
-def getSubnet(region: str):
-    ec2 = boto3.client("ec2", region_name=region)
-    ssm = boto3.client("ssm", region_name=region)
-
-    subnet_param = f"/subnet/{region}/id"
+    # --- Download server.jar from S3 ---
+    s3_key = f"minecraft-jars/{version}/server.jar"
+    dest_path = f"{efs_mount_path}/server.jar"
 
     try:
-        subnet_id = ssm.get_parameter(Name=subnet_param)["Parameter"]["Value"]
+        s3.download_file(bucket_name, s3_key, dest_path)
+        print(f"Downloaded {s3_key} -> {dest_path}")
     except ClientError as e:
-        raise RuntimeError(f"Failed to get Subnet ID from SSM ({subnet_param}): {e}")
+        return {"statusCode": 500, "body": f"Failed to download server.jar: {e}"}
 
-    # Validate the subnet actually exists in this region
-    try:
-        response = ec2.describe_subnets(SubnetIds=[subnet_id])
-        subnets = response.get("Subnets", [])
-    except ClientError as e:
-        raise RuntimeError(f"Failed to describe Subnets: {e}")
-
-    if not subnets:
-        raise RuntimeError(f"Subnet not found: {subnet_id} in {region}")
-
-    return subnet_id
-
-
-def get_latest_ami(region: str):
-    ssm = boto3.client('ssm', region_name=region)
-    # AWS publishes a parameter for the latest Amazon Linux 2023 AMI
-    param = ssm.get_parameter(Name="/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
-    return param['Parameter']['Value']
-
-
-def get_or_create_server_uuid(table, server_owner: str):
-    # Try to fetch from DynamoDB
-    response = table.get_item(Key={'serverId': server_owner})
-    if 'Item' in response:
-        return response['Item']['serverUUID']
-
-    # Otherwise create one
-    serverUUID = str(uuid.uuid4())
-    table.put_item(Item={
-        'serverId': server_owner,
-        'serverUUID': serverUUID
-    })
-    return serverUUID
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "serverUUID": server_uuid,
+            "message": f"Server profile created and jar prepared at {efs_mount_path}"
+        })
+    }
