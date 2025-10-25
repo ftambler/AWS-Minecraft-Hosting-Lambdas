@@ -103,6 +103,21 @@ Resources:
       SubnetId: !Ref Subnet
       SecurityGroups:
         - !Ref SecurityGroup
+    
+  EFSAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      PosixUser:
+        Uid: "1000"
+        Gid: "1000"
+      RootDirectory:
+        CreationInfo:
+          OwnerUid: "1000"
+          OwnerGid: "1000"
+          Permissions: "755"
+        Path: "/lambda"
+
 
   # --- Lambdas (region-specific) ---
   CreateServer:
@@ -114,6 +129,14 @@ Resources:
       Runtime: python3.11
       Role: !Ref LabRoleArn
       Timeout: 60
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        SubnetIds:
+          - !Ref Subnet
+      FileSystemConfigs:
+        - Arn: !GetAtt EFSAccessPoint.Arn
+          LocalMountPath: /mnt/efs
       Environment:
         Variables:
           EFS_ID: !Ref EFSFileSystem
@@ -121,6 +144,7 @@ Resources:
           SUBNET_ID: !Ref Subnet
           REGION: !Ref AWS::Region
           GLOBAL_REGION: !Ref GlobalRegion
+          EFS_PATH: /mnt/efs
   
   TurnOnServer:
     Type: AWS::Serverless::Function
