@@ -46,7 +46,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: serverHandler
-      CodeUri: lambdas/serverMessagesHandler/
+      CodeUri: ../../lambdas/serverMessagesHandler/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
@@ -59,7 +59,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: OperationSwitch
-      CodeUri: lambdas/operationSwitch/
+      CodeUri: ../../lambdas/operationSwitch/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
