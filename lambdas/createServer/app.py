@@ -15,12 +15,13 @@ def lambda_handler(event, context):
     region = event["region"]
 
     server_uuid = str(uuid.uuid4())
-    table_name = os.environ["TABLE_NAME"]
 
     ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
+
     dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
     s3 = boto3.client("s3", region_name=os.environ["GLOBAL_REGION"])
     
+    table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
     bucket_name = ssm.get_parameter(Name="/global/s3/minecraft-versions/id")['Parameter']['Value']
 
     # --- Create Config Profile in DynamoDB ---

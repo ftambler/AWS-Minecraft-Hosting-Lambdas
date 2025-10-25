@@ -118,6 +118,14 @@ Resources:
       Type: String
       Value: 760476980933-bucketcito #TODO Hardcodeado
       Description: Bucket Name for Minecraft Jars
+  
+  ParamDynamoAppTable:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/global/dynamo/table-name"
+      Type: String
+      Value: !Ref ServerTable
+      Description: Global Dynamo Table Name
 
 Outputs:
   ApiUrl:
