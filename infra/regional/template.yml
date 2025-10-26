@@ -142,7 +142,7 @@ Resources:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref EFSFileSystem
-      SubnetId: !Ref PrivateSubnet
+      SubnetId: !Ref PublicSubnet
       SecurityGroups:
         - !Ref SecurityGroup
     
@@ -202,7 +202,7 @@ Resources:
         Variables:
           EFS_ID: !Ref EFSFileSystem
           SECURITY_GROUP_ID: !Ref SecurityGroup
-          SUBNET_ID: !Ref PrivateSubnet
+          SUBNET_ID: !Ref PublicSubnet
           REGION: !Ref AWS::Region
           GLOBAL_REGION: !Ref GlobalRegion
 
@@ -240,7 +240,7 @@ Resources:
     Properties:
       Name: !Sub "/subnet/${AWS::Region}/id"
       Type: String
-      Value: !Ref PrivateSubnet
+      Value: !Ref PublicSubnet
 
 Outputs:
   VPCId:

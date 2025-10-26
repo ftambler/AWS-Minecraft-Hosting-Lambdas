@@ -9,9 +9,12 @@ from botocore.exceptions import ClientError
 def lambda_handler(event, context):
     user_email = event["owner"]
 
-    dynamodb_global = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
-    table = dynamodb_global.Table(os.environ["TABLE_NAME"])
-    
+    ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
+    dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
+
+    table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
+    table = dynamodb.Table(table_name)
+
     response = table.get_item(
         Key={
             "PK": f"USERS#{user_email}",
@@ -39,14 +42,20 @@ def lambda_handler(event, context):
 
     # Build user data
     user_data = f"""#!/bin/bash
-    set -euxo pipefail
-    dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
-    mkdir -p /mnt/efs
-    mount -t efs -o tls {efs_id}:/ /mnt/efs/
-    cd /mnt/efs/{serverUUID}
+        set -euxo pipefail
+        dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
 
-    java {server_flags} -jar server.jar nogui
-    """
+        # Mount EFS
+        mkdir -p /mnt/efs
+        mount -t efs -o tls {efs_id}:/ /mnt/efs/
+
+        # Fix permissions
+        chown -R ec2-user:ec2-user /mnt/efs/{serverUUID}
+        chmod -R 755 /mnt/efs/{serverUUID}
+
+        cd /mnt/efs/{serverUUID}
+        sudo -u ec2-user java {server_flags} -jar server.jar nogui
+        """
 
     # Launch EC2 instance
     instance_params = {
@@ -63,7 +72,16 @@ def lambda_handler(event, context):
         'UserData': user_data,
         'IamInstanceProfile': {
             'Name': "EC2ServerInstanceProfile"
+        },
+        'TagSpecifications': [
+        {
+            'ResourceType': 'instance',
+            'Tags': [
+                {'Key': 'Name', 'Value': serverUUID},
+                {'Key': 'serverOwner', 'Value': user_email}
+            ]
         }
+        ]
     }
 
     try:
