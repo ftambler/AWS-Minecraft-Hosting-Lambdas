@@ -61,7 +61,7 @@ def lambda_handler(event, context):
         return {"statusCode": 500, "body": f"Failed to create eula.txt: {e}"}
 
     # --- Download server.jar from S3 ---
-    s3_key = f"minecraft-jars/{version}/server.jar"
+    s3_key = f"{version}/server.jar"
     dest_path = f"{server_path}/server.jar"
 
     try:
