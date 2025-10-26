@@ -156,6 +156,9 @@ Resources:
           OwnerUid: "0"
           OwnerGid: "0"
           Permissions: "777"
+      PosixUser:
+        Uid: "0"
+        Gid: "0"
 
   # --- Lambdas (region-specific) ---
   CreateServer:
