@@ -27,7 +27,7 @@ def lambda_handler(event, context):
     table = dynamodb.Table(table_name)
     config_item = {
         "PK": f"USERS#{user_email}",
-        "SK": f"CONFIGPROFILE",
+        "SK": "CONFIGPROFILE",
         "ServerUUID": server_uuid,
         "Type": server_type,
         "Version": version,
@@ -50,6 +50,15 @@ def lambda_handler(event, context):
         print(f"Created EFS directory: {server_path}")
     except Exception as e:
         return {"statusCode": 500, "body": f"Failed to create EFS directory: {e}"}
+
+    # --- Create eula.txt ---
+    try:
+        eula_path = os.path.join(server_path, "eula.txt")
+        with open(eula_path, "w") as f:
+            f.write("eula=true\n")
+        print(f"Created EULA file at {eula_path}")
+    except Exception as e:
+        return {"statusCode": 500, "body": f"Failed to create eula.txt: {e}"}
 
     # --- Download server.jar from S3 ---
     s3_key = f"minecraft-jars/{version}/server.jar"
