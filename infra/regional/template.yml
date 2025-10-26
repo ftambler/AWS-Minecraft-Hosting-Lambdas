@@ -96,35 +96,49 @@ Resources:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
 
-  # --- NAT Gateway (for Lambda Internet Access) ---
-  ElasticIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-
-  NATGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt ElasticIP.AllocationId
-      SubnetId: !Ref PublicSubnet
-
-  PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
+  # --- VPC Endpoints for Private AWS Access ---
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
 
-  PrivateRoute:
-    Type: AWS::EC2::Route
+  DynamoDBEndpoint:
+    Type: AWS::EC2::VPCEndpoint
     Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATGateway
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
 
-  PrivateSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
+  SSMMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
     Properties:
-      SubnetId: !Ref PrivateSubnet
-      RouteTableId: !Ref PrivateRouteTable
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssmmessages
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      PrivateDnsEnabled: true
+
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      PrivateDnsEnabled: true
+
 
   # --- EFS ---
   EFSFileSystem:
