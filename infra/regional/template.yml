@@ -147,15 +147,15 @@ Resources:
         - !Ref SecurityGroup
     
   MyEFSAccessPoint:
-  Type: AWS::EFS::AccessPoint
-  Properties:
-    FileSystemId: !Ref EFSFileSystem
-    RootDirectory:
-      Path: "/"
-      CreationInfo:
-        OwnerUid: "0"
-        OwnerGid: "0"
-        Permissions: "777"
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      RootDirectory:
+        Path: "/"
+        CreationInfo:
+          OwnerUid: "0"
+          OwnerGid: "0"
+          Permissions: "777"
 
   # --- Lambdas (region-specific) ---
   CreateServer:
