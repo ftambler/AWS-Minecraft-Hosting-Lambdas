@@ -173,6 +173,8 @@ Resources:
   # --- Lambdas (region-specific) ---
   CreateServer:
     Type: AWS::Serverless::Function
+    DependsOn:
+      - EFSMountTarget
     Properties:
       FunctionName: !Sub createServer-${AWS::Region}
       CodeUri: ../../lambdas/createServer/
