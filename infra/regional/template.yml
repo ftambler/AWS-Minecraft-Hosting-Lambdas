@@ -167,7 +167,7 @@ Resources:
       - EFSMountTarget
     Properties:
       FunctionName: !Sub createServer-${AWS::Region}
-      CodeUri: ../../lambdas/createServer/
+      CodeUri: ../../lambdas/regional/createServer/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
@@ -190,7 +190,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub deleteServer-${AWS::Region}
-      CodeUri: ../../lambdas/deleteServer/
+      CodeUri: ../../lambdas/regional/deleteServer/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
@@ -212,7 +212,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub turnOnServer-${AWS::Region}
-      CodeUri: ../../lambdas/turnOnServer/
+      CodeUri: ../../lambdas/regional/turnOnServer/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
@@ -234,7 +234,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub turnOffServer-${AWS::Region}
-      CodeUri: ../../lambdas/turnOffServer/
+      CodeUri: ../../lambdas/regional/turnOffServer/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
