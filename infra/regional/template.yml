@@ -96,7 +96,7 @@ Resources:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
 
- # Add a NAT Gateway in the VPC
+  # Add a NAT Gateway in the VPC
   NatGateway:
     Type: AWS::EC2::NatGateway
     Properties:

@@ -40,13 +40,11 @@ Resources:
           Value: CloudFormation
 
   # --- Lambdas ---
-
-  # --- Lambda: ServerMessagesHandler
   ServerHandler:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: serverHandler
-      CodeUri: ../../lambdas/serverMessagesHandler/
+      CodeUri: ../../lambdas/global/serverMessagesHandler/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
@@ -54,12 +52,12 @@ Resources:
         Variables:
           QUEUE_URL: !Ref ServerQueue
 
-  # --- Lambda: OperationSwitch (routes operations + regions)
-  OperationSwitch:
+  # (routes operations + regions)
+  GlobalOperationSwitch:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: OperationSwitch
-      CodeUri: ../../lambdas/operationSwitch/
+      FunctionName: GlobalOperationSwitch
+      CodeUri: ../../lambdas/global/operationSwitch/
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
@@ -69,6 +67,20 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt ServerQueue.Arn
+  
+  GlobalServerStatus:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GlobalServerStatus
+      CodeUri: ../../lambdas/global/serverStatus/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 30
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DynamoTable
+          REGION: AWS::REGION
 
   # --- API Gateway (frontend entrypoint)
   ServerApi:

@@ -2,6 +2,8 @@ import boto3
 import json
 import os
 
+#ENV: QUEUE_URL
+
 def lambda_handler(event, context):    
     sqs = boto3.client('sqs')
     
