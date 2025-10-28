@@ -10,7 +10,8 @@ def lambda_handler(event, context):
     user_email = event["owner"]
     server_type = event["type"]
     version = event["version"]
-    region = event["region"] #TODO change to ENV REGION
+    server_name = event["serverName"]
+    region = os.environ['REGION'] #TODO change to ENV REGION
 
     server_uuid = str(uuid.uuid4())
 
@@ -32,11 +33,18 @@ def lambda_handler(event, context):
         "Type": server_type,
         "Version": version,
         "Region": region,
-        "ServerName": f"minecraft-{server_uuid[:8]}"
+        "ServerName": server_name
+    }
+
+    server_item = {
+        "PK": f"USERS#{user_email}",
+        "SK": "SERVER",
+        "status": "CREATING"
     }
 
     try:
         table.put_item(Item=config_item)
+        table.put_item(Item=server_item)
         print(f"Created DynamoDB config profile: {server_uuid}")
     except ClientError as e:
         print(f"Error writing to DynamoDB: {e}")
@@ -69,5 +77,17 @@ def lambda_handler(event, context):
         print(f"Downloaded {s3_key} -> {dest_path}")
     except ClientError as e:
         print("Failed to download server.jar: {e}")
+
+    server_item = {
+        "PK": f"USERS#{user_email}",
+        "SK": "SERVER",
+        "status": "OFFLINE"
+    }
+    try:
+        table.put_item(Item=config_item)
+        table.put_item(Item=server_item)
+        print(f"Created DynamoDB config profile: {server_uuid}")
+    except ClientError as e:
+        print(f"Error writing to DynamoDB: {e}")
 
     print(f"serverUUID {server_uuid}, Server profile created and jar prepared at {server_path}")

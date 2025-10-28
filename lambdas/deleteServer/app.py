@@ -3,7 +3,7 @@ import os
 from botocore.exceptions import ClientError
 import shutil
 
-# ENV: GLOBAL_REGION
+# ENV: GLOBAL_REGION, EFS_PATH
 
 def lambda_handler(event, context):
     user_email = event.get("owner")
@@ -16,11 +16,25 @@ def lambda_handler(event, context):
     table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
     table = dynamodb.Table(table_name)
 
+    server_item = {
+        "PK": f"USERS#{user_email}",
+        "SK": "SERVER",
+        "status": "DELETING"
+    }
+
+    try:
+        table.put_item(Item=server_item)
+        print(f"Created DynamoDB config profile: {server_uuid}")
+    except ClientError as e:
+        print(f"Error writing to DynamoDB: {e}")
+
+
     #Get CONFIGPROFILE
     response = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": f"CONFIGPROFILE"})
     configprofile = response.get("Item")
     server_uuid = configprofile.get('ServerUUID')
     table.delete_item(Key={"PK": f"USERS#{user_email}", "SK": f"CONFIGPROFILE"})
+    table.delete_item(Key={"PK": f"USERS#{user_email}", "SK": f"SERVER"})
 
     # EFS path
     efs_path = os.environ.get("EFS_PATH", "/mnt/efs")

@@ -182,30 +182,10 @@ Resources:
           LocalMountPath: /mnt/efs
       Environment:
         Variables:
-          EFS_ID: !Ref EFSFileSystem
-          SECURITY_GROUP_ID: !Ref SecurityGroup
-          SUBNET_ID: !Ref PrivateSubnet
           REGION: !Ref AWS::Region
           GLOBAL_REGION: !Ref GlobalRegion
           EFS_PATH: /mnt/efs
   
-  TurnOnServer:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub turnOnServer-${AWS::Region}
-      CodeUri: ../../lambdas/turnOnServer/
-      Handler: app.lambda_handler
-      Runtime: python3.11
-      Role: !Ref LabRoleArn
-      Timeout: 60
-      Environment:
-        Variables:
-          EFS_ID: !Ref EFSFileSystem
-          SECURITY_GROUP_ID: !Ref SecurityGroup
-          SUBNET_ID: !Ref PublicSubnet
-          REGION: !Ref AWS::Region
-          GLOBAL_REGION: !Ref GlobalRegion
-
   DeleteServer:
     Type: AWS::Serverless::Function
     Properties:
@@ -215,9 +195,58 @@ Resources:
       Runtime: python3.11
       Role: !Ref LabRoleArn
       Timeout: 60
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet
+      FileSystemConfigs:
+        - Arn: !GetAtt MyEFSAccessPoint.Arn
+          LocalMountPath: /mnt/efs
       Environment:
         Variables:
+          GLOBAL_REGION: !Ref GlobalRegion
+          EFS_PATH: /mnt/efs
+
+  TurnOnServer:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub turnOnServer-${AWS::Region}
+      CodeUri: ../../lambdas/turnOnServer/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 60
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet
+      Environment:
+        Variables:
+          GLOBAL_REGION: !Ref GlobalRegion
           EFS_ID: !Ref EFSFileSystem
+          SECURITY_GROUP_ID: !Ref SecurityGroup
+          SUBNET_ID: !Ref PublicSubnet
+          REGION: !Ref AWS::Region
+
+  TurnOffServer:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub turnOffServer-${AWS::Region}
+      CodeUri: ../../lambdas/turnOffServer/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 60
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet
+      Environment:
+        Variables:
+          GLOBAL_REGION: !Ref GlobalRegion
           REGION: !Ref AWS::Region
 
   # --- Regional SSM Parameters (mirrors for globals) ---

@@ -1,5 +1,6 @@
 import boto3
 import os
+from botocore.exceptions import ClientError
 
 # ENV: REGION, GLOBAL_REGION
 
@@ -33,3 +34,15 @@ def lambda_handler(event, context):
         )
     except Exception as e:
         print(f"Error stopping instance {instance_id}: {e}")
+
+
+    server_item = {
+        "PK": f"USERS#{user_email}",
+        "SK": "SERVER",
+        "status": "OFFLINE"
+    }
+
+    try:
+        table.put_item(Item=server_item)
+    except ClientError as e:
+        print(f"Error writing to DynamoDB: {e}")

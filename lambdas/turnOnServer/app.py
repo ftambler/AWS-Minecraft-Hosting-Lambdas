@@ -2,10 +2,11 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-# ENV GLOBAL_REGION, EFS_IF, SECURITY_GROUP_ID, SUBNET_ID
+# ENV GLOBAL_REGION, EFS_ID, SECURITY_GROUP_ID, SUBNET_ID
 
 def lambda_handler(event, context):
     user_email = event["owner"]
+    region = os.environ["REGION"]
 
     # Clients
     ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
@@ -16,6 +17,17 @@ def lambda_handler(event, context):
     table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
     table = dynamodb.Table(table_name)
 
+    server_item = {
+        "PK": f"USERS#{user_email}",
+        "SK": "SERVER",
+        "status": "STARTING"
+    }
+
+    try:
+        table.put_item(Item=server_item)
+    except ClientError as e:
+        print(f"Error writing to DynamoDB: {e}")
+
     response = table.get_item(
         Key={
             "PK": f"USERS#{user_email}",
@@ -25,7 +37,6 @@ def lambda_handler(event, context):
     config = response.get("Item")
 
     # Config Profile variables
-    region = config.get('Region')
     serverUUID = config.get('ServerUUID')
     server_type = config.get('Type')
     server_flags = getFlags(server_type)
@@ -102,12 +113,15 @@ def lambda_handler(event, context):
 
         table.put_item(Item={
             "PK": f"USERS#{user_email}",
-            "SK": f"SERVER#{serverUUID}",
+            "SK": f"SERVER",
+            "status": "RUNNING",
             "InstanceId": instance_id,
             "Region": region,
             "PublicIp": instance.public_ip_address,
             "LaunchedAt": instance.launch_time.isoformat()
         })
+
+        table.put_item(Item=server_item)
 
         return {
             'statusCode': 200,
@@ -118,6 +132,13 @@ def lambda_handler(event, context):
             }
         }
     except Exception as e:
+        server_item = {
+            "PK": f"USERS#{user_email}",
+            "SK": "SERVER",
+            "status": "OFFLINE"
+        }
+
+        table.put_item(Item=server_item)
         print(f"Error launching EC2 instance: {e}")
         return {
             'statusCode': 500,
