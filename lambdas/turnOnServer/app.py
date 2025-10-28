@@ -1,17 +1,18 @@
 import os
 import boto3
-import base64
-import random
-import uuid
-import json
 from botocore.exceptions import ClientError
+
+# ENV GLOBAL_REGION, EFS_IF, SECURITY_GROUP_ID, SUBNET_ID
 
 def lambda_handler(event, context):
     user_email = event["owner"]
 
+    # Clients
     ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
     dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
+    ec2 = boto3.client('ec2', region_name=region)
 
+    # Table
     table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
     table = dynamodb.Table(table_name)
 
@@ -29,9 +30,6 @@ def lambda_handler(event, context):
     server_type = config.get('Type')
     server_flags = getFlags(server_type)
 
-    # Services
-    ec2 = boto3.client('ec2', region_name=region)
-
     # Get EFS, SG, Subnet, S3, VPC
     efs_id = os.getenv('EFS_ID')
     security_groups = [os.getenv('SECURITY_GROUP_ID')]
@@ -43,17 +41,24 @@ def lambda_handler(event, context):
     # Build user data
     user_data = f"""#!/bin/bash
         set -euxo pipefail
+
+        # Install dependencies
         dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
 
         # Mount EFS
         mkdir -p /mnt/efs
         mount -t efs -o tls {efs_id}:/ /mnt/efs/
 
-        # Fix permissions
-        chown -R ec2-user:ec2-user /mnt/efs/{serverUUID}
-        chmod -R 755 /mnt/efs/{serverUUID}
+        # Make sure everything under the server folder is writable
+        chmod -R 777 /mnt/efs/{serverUUID} || true
 
+        # Go into that folder and start the Minecraft server
         cd /mnt/efs/{serverUUID}
+
+        # Delete stale lock if any
+        rm -f world/session.lock || true
+
+        # Start as ec2-user (not root)
         sudo -u ec2-user java {server_flags} -jar server.jar nogui
         """
 
