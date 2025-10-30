@@ -8,6 +8,32 @@ Parameters:
     Description: ARN of LabRole provided by AWS Academy
 
 Resources:
+  # --- Cognito ---
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: GlobalUserPool
+      AutoVerifiedAttributes: [email]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: GlobalClient
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      SupportedIdentityProviders: [COGNITO]
+
   # --- SQS (shared across regions)
   ServerQueue:
     Type: AWS::SQS::Queue
@@ -102,6 +128,11 @@ Resources:
     Properties:
       Name: ServerPipelineAPI
       StageName: Prod
+      Auth:
+        DefaultAuthorizer: CognitoAuth
+        Authorizers:
+          CognitoAuth:
+            UserPoolArn: !GetAtt UserPool.Arn
       DefinitionBody:
         swagger: "2.0"
         info:
@@ -109,8 +140,24 @@ Resources:
         paths:
           /create:
             post:
+              security:
+                - cognitoAuthorizer: []
               x-amazon-apigateway-integration:
-                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OperationSwitch.Arn}/invocations
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalOperationSwitch.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+          /login:
+            post:
+              # Public route, no auth
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalGetResources.Arn}/invocations
+                httpMethod: POST
+                type: aws_proxy
+          /signup:
+            post:
+              # Public route, no auth
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalGetResources.Arn}/invocations
                 httpMethod: POST
                 type: aws_proxy
 
