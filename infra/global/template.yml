@@ -106,7 +106,7 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref ServerTable
-          REGION: ${AWS::REGION}
+          REGION: !Sub ${AWS::REGION}
 
   GlobalGetResources:
     Type: AWS::Serverless::Function
@@ -120,7 +120,7 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref ServerTable
-          REGION: ${AWS::REGION}
+          REGION: !Sub ${AWS::REGION}
 
   # --- API Gateway (frontend entrypoint)
   ServerApi:
