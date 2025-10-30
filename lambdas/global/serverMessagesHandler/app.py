@@ -44,7 +44,9 @@ def lambda_handler(event, context):
         case 'DELETE' | 'TURNON' | 'TURNOFF':
             message_body = {
                 'operation': operation,
-                'owner': event['owner']
+                'payload': {
+                    'owner': event['owner']
+                }                
             }
         case _:
             return {
