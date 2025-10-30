@@ -12,7 +12,7 @@ def lambda_handler(event, context):
     if not user_email:
         return {"statusCode": 400, "body": "Missing 'owner' in request"}
 
-    dynamodb = boto3.resource("dynamodb", region_name=os.environ('REGION'))
+    dynamodb = boto3.resource("dynamodb", region_name=os.environ['REGION'])
     table = dynamodb.Table(os.environ["TABLE_NAME"])
 
     try:
