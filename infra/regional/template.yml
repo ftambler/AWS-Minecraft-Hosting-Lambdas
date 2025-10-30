@@ -191,6 +191,8 @@ Resources:
     Properties:
       FunctionName: !Sub deleteServer-${AWS::Region}
       CodeUri: ../../lambdas/regional/deleteServer/
+      DependsOn:
+      - EFSMountTarget
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
