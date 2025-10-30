@@ -5,7 +5,7 @@ from botocore.exceptions import ClientError
 # ENV GLOBAL_REGION, EFS_ID, SECURITY_GROUP_ID, SUBNET_ID
 
 def lambda_handler(event, context):
-    user_email = event["owner"]
+    user_email = event['owner']
     region = os.environ["REGION"]
 
     # Clients
