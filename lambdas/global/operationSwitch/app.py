@@ -27,7 +27,7 @@ def lambda_handler(event, context):
             continue
 
         function_name = f"{function_base}-{region}"
-        print(f"Routing {operation} to {function_name} in {region}")
+        print(f"Routing {operation} with body {payload} to {function_name} in {region}")
 
         lambda_client = boto3.client("lambda", region_name=region)
         response = lambda_client.invoke(
