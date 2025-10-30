@@ -14,7 +14,7 @@ def lambda_handler(event, context):
         return {'statusCode': 400, 'body': json.dumps('Missing operation field')}
 
     required_keys = {
-        'CREATE': ['server-type', 'server-version', 'server-region', 'owner'],
+        'CREATE': ['serverType', 'serverVersion', 'serverRegion', 'owner', 'serverName'],
         'DELETE': ['owner'],
         'TURNON': ['owner'],
         'TURNOFF': ['owner']
@@ -34,10 +34,11 @@ def lambda_handler(event, context):
             message_body = {
                 'operation': 'CREATE',
                 'payload': {
-                    'type': event['server-type'],
-                    'version': event['server-version'],
-                    'region': event['server-region'],
-                    'owner': event['owner']
+                    'type': event['serverType'],
+                    'version': event['serverVersion'],
+                    'region': event['serverRegion'],
+                    'owner': event['owner'],
+                    'serverName': event['serverName']
                 }
             }
         case 'DELETE' | 'TURNON' | 'TURNOFF':
