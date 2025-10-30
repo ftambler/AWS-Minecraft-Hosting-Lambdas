@@ -121,8 +121,6 @@ def lambda_handler(event, context):
             "LaunchedAt": instance.launch_time.isoformat()
         })
 
-        table.put_item(Item=server_item)
-
         return {
             'statusCode': 200,
             'body': {
