@@ -50,42 +50,42 @@ def lambda_handler(event, context):
 
     # Build user data
     user_data = f"""#!/bin/bash
-        set -euxo pipefail
+set -euxo pipefail
 
-        # Install dependencies
-        dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
+# Install dependencies
+dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
 
-        # Mount EFS
-        mkdir -p /mnt/efs
-        mount -t efs -o tls {efs_id}:/ /mnt/efs/
+# Mount EFS
+mkdir -p /mnt/efs
+mount -t efs -o tls {efs_id}:/ /mnt/efs/
 
-        # Make sure everything under the server folder is writable
-        chmod -R 777 /mnt/efs/{serverUUID} || true
-        cd /mnt/efs/{serverUUID}
-        rm -f world/session.lock || true
+# Make sure everything under the server folder is writable
+chmod -R 777 /mnt/efs/{serverUUID} || true
+cd /mnt/efs/{serverUUID}
+rm -f world/session.lock || true
 
-        # --- Reporting setup ---
-        echo "OWNER_UUID={user_email}" >> /etc/environment
-        echo "INSTANCE_TYPE={server_type}" >> /etc/environment
-        echo "REPORT_LAMBDA_NAME={os.environ['CREDIT_DEDUCTION_LAMBDA']}" >> /etc/environment
+# --- Reporting setup ---
+echo "OWNER_UUID={user_email}" >> /etc/environment
+echo "INSTANCE_TYPE={server_type}" >> /etc/environment
+echo "REPORT_LAMBDA_NAME={os.environ['CREDIT_DEDUCTION_LAMBDA']}" >> /etc/environment
 
-        cat <<EOF > /usr/local/bin/report.sh
-        #!/bin/bash
-        set -e
-        source /etc/environment
-        aws lambda invoke --function-name "$REPORT_LAMBDA_NAME" \
-            --invocation-type Event \
-            --payload "{{\\"owner\\":\\"$OWNER_UUID\\",\\"instanceType\\":\\"$INSTANCE_TYPE\\"}}" \
-            /dev/null
-        EOF
+cat <<EOF > /usr/local/bin/report.sh
+#!/bin/bash
+set -e
+source /etc/environment
+aws lambda invoke --function-name "$REPORT_LAMBDA_NAME" \
+--invocation-type Event \
+--payload "{{\\"owner\\":\\"$OWNER_UUID\\",\\"instanceType\\":\\"$INSTANCE_TYPE\\"}}" \
+/dev/null
+EOF
 
-        chmod +x /usr/local/bin/report.sh
-        (crontab -l 2>/dev/null; echo "*/10 * * * * /usr/local/bin/report.sh") | crontab -
+chmod +x /usr/local/bin/report.sh
+(crontab -l 2>/dev/null; echo "*/10 * * * * /usr/local/bin/report.sh") | crontab -
 
 
-        # Start as ec2-user (not root)
-        sudo -u ec2-user java {server_flags} -jar server.jar nogui
-        """
+# Start as ec2-user (not root)
+sudo -u ec2-user java {server_flags} -jar server.jar nogui
+"""
 
     # Launch EC2 instance
     instance_params = {
