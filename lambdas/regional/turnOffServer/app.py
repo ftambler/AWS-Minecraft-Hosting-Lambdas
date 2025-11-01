@@ -24,7 +24,7 @@ def lambda_handler(event, context):
     instance_id = server.get('InstanceId')
 
     try:
-        response = ec2.stop_instances(InstanceIds=[instance_id])
+        response = ec2.terminate_instances(InstanceIds=[instance_id])
         print(f"Stopping instance {instance_id}...")
         table.delete_item(
             Key={
