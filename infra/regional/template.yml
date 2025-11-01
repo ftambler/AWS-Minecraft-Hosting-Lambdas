@@ -231,6 +231,7 @@ Resources:
           SECURITY_GROUP_ID: !Ref SecurityGroup
           SUBNET_ID: !Ref PublicSubnet
           REGION: !Ref AWS::Region
+          CREDIT_DEDUCTION_LAMBDA: !Ref CreditDeduction
 
   TurnOffServer:
     Type: AWS::Serverless::Function
@@ -250,6 +251,25 @@ Resources:
         Variables:
           GLOBAL_REGION: !Ref GlobalRegion
           REGION: !Ref AWS::Region
+  
+  CreditDeduction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub creditDeduction-${AWS::Region}
+      CodeUri: ../../lambdas/regional/creditDeduction/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 10
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet
+      Environment:
+        Variables:
+          GLOBAL_REGION: !Ref GlobalRegion
+          TURN_OFF_LAMBDA_NAME: !Ref TurnOffServer
 
   # --- Regional SSM Parameters (mirrors for globals) ---
   ParamEFSId:
