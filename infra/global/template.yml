@@ -47,6 +47,13 @@ Resources:
         RefreshToken: days
       SupportedIdentityProviders:
         - COGNITO
+  CognitoInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt SignUpHandler.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt MineHostingUserPool.Arn
 
   # --- SQS (shared across regions)
   ServerQueue:
