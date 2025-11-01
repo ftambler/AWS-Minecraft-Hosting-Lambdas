@@ -77,8 +77,7 @@ cat <<'EOF' > /usr/local/bin/report.sh
 #!/bin/bash
 set -e
 source /etc/environment
-payload=$(printf '{"owner":"%s","instanceType":"%s"}' "$OWNER_UUID" "$INSTANCE_TYPE")
-
+payload=$(printf '{{"owner":"%%s","instanceType":"%%s"}}' "$OWNER_UUID" "$INSTANCE_TYPE")
 aws lambda invoke \
   --function-name "$REPORT_LAMBDA_NAME" \
   --invocation-type Event \
