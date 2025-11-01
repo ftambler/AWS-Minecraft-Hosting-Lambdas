@@ -119,7 +119,9 @@ def lambda_handler(event, context):
         instance_id = response['Instances'][0]['InstanceId']
 
         # Wait until running and get IP
-        instance = ec2.Instance(instance_id)
+        ec2_resource = boto3.resource('ec2', region_name=os.environ['REGION'])
+        instance = ec2_resource.Instance(instance_id)
+        # instance = ec2.Instance(instance_id)
         instance.wait_until_running()
         instance.load()
         public_ip = instance.public_ip_address
