@@ -54,11 +54,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 2049
           ToPort: 2049
-          CidrIp: 0.0.0.0/0  # NFS
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !Ref SecurityGroup
         - IpProtocol: tcp
           FromPort: 25565
           ToPort: 25565
