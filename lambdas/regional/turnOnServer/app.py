@@ -37,6 +37,7 @@ def lambda_handler(event, context):
     # Config Profile variables
     serverUUID = config.get('ServerUUID')
     server_type = config.get('Type')
+    server_name = config.get('ServerName')
     server_flags = getFlags(server_type)
 
     # Get EFS, SG, Subnet, S3, VPC
@@ -128,6 +129,7 @@ def lambda_handler(event, context):
             "SK": f"SERVER",
             "status": "RUNNING",
             "InstanceId": instance_id,
+            "ServerName": server_name,
             "Region": os.environ["REGION"],
             "PublicIp": instance.public_ip_address,
             "LaunchedAt": instance.launch_time.isoformat()
