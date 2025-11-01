@@ -24,7 +24,6 @@ def lambda_handler(event, context):
 
     try:
         table.put_item(Item=server_item)
-        print(f"Created DynamoDB config profile: {server_uuid}")
     except ClientError as e:
         print(f"Error writing to DynamoDB: {e}")
 
