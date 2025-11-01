@@ -73,7 +73,7 @@ echo "OWNER_UUID={user_email}" >> /etc/environment
 echo "INSTANCE_TYPE={server_type}" >> /etc/environment
 echo "REPORT_LAMBDA_NAME={os.environ['CREDIT_DEDUCTION_LAMBDA']}" >> /etc/environment
 
-cat <<EOF > /usr/local/bin/report.sh
+cat <<'EOF' > /usr/local/bin/report.sh
 #!/bin/bash
 set -e
 source /etc/environment
