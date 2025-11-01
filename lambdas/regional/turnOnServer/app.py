@@ -50,7 +50,7 @@ def lambda_handler(event, context):
 
     # Build user data
     user_data = f"""#!/bin/bash
-set -euxo pipefail
+set -exo pipefail
 
 # Install dependencies
 dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
