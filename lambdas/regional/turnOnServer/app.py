@@ -53,7 +53,11 @@ def lambda_handler(event, context):
 set -exo pipefail
 
 # Install dependencies
-dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli
+dnf install -y amazon-efs-utils java-21-amazon-corretto aws-cli cronie
+
+# Enable cron service
+systemctl enable crond
+systemctl start crond
 
 # Mount EFS
 mkdir -p /mnt/efs
