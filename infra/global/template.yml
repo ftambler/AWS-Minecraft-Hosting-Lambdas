@@ -9,30 +9,44 @@ Parameters:
 
 Resources:
   # --- Cognito ---
-  UserPool:
+  MineHostingUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: GlobalUserPool
-      AutoVerifiedAttributes: [email]
+      UserPoolName: mine-hosting-user-pool
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
       Policies:
         PasswordPolicy:
           MinimumLength: 8
-      Schema:
-        - Name: email
-          Required: true
-          Mutable: false
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      LambdaConfig:
+        PostConfirmation: !GetAtt SignUpHandler.Arn
 
-  UserPoolClient:
+  MineHostingUserPoolClientWeb:
     Type: AWS::Cognito::UserPoolClient
     Properties:
-      ClientName: GlobalClient
-      UserPoolId: !Ref UserPool
+      UserPoolId: !Ref MineHostingUserPool
+      ClientName: web-client
       GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
       ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
-        - ALLOW_USER_SRP_AUTH
-      SupportedIdentityProviders: [COGNITO]
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+      SupportedIdentityProviders:
+        - COGNITO
 
   # --- SQS (shared across regions)
   ServerQueue:
@@ -121,6 +135,20 @@ Resources:
         Variables:
           TABLE_NAME: !Ref ServerTable
           REGION: !Sub ${AWS::Region}
+  
+  SignUpHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SignUpHandler
+      CodeUri: ../../lambdas/global/signUpHandler/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 30
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ServerTable
+          REGION: !Sub ${AWS::Region}
 
   # --- API Gateway (frontend entrypoint)
   ServerApi:
@@ -132,32 +160,18 @@ Resources:
         DefaultAuthorizer: CognitoAuth
         Authorizers:
           CognitoAuth:
-            UserPoolArn: !GetAtt UserPool.Arn
+            UserPoolArn: !GetAtt MineHostingUserPool.Arn
       DefinitionBody:
         swagger: "2.0"
         info:
           title: "Server Pipeline API"
         paths:
-          /create:
+          /serverAction:
             post:
               security:
-                - cognitoAuthorizer: []
+                - CognitoAuth: []
               x-amazon-apigateway-integration:
                 uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalOperationSwitch.Arn}/invocations
-                httpMethod: POST
-                type: aws_proxy
-          /login:
-            post:
-              # Public route, no auth
-              x-amazon-apigateway-integration:
-                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalGetResources.Arn}/invocations
-                httpMethod: POST
-                type: aws_proxy
-          /signup:
-            post:
-              # Public route, no auth
-              x-amazon-apigateway-integration:
-                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalGetResources.Arn}/invocations
                 httpMethod: POST
                 type: aws_proxy
 
