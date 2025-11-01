@@ -77,10 +77,14 @@ cat <<'EOF' > /usr/local/bin/report.sh
 #!/bin/bash
 set -e
 source /etc/environment
-aws lambda invoke --function-name "$REPORT_LAMBDA_NAME" \
---invocation-type Event \
---payload "{{\\"owner\\":\\"$OWNER_UUID\\",\\"instanceType\\":\\"$INSTANCE_TYPE\\"}}" \
-/dev/null
+
+payload=$(printf '{{"owner":"%s","instanceType":"%s"}}' "$OWNER_UUID" "$INSTANCE_TYPE")
+
+aws lambda invoke \
+  --function-name "$REPORT_LAMBDA_NAME" \
+  --invocation-type Event \
+  --payload "$payload" \
+  /dev/null
 EOF
 
 chmod +x /usr/local/bin/report.sh
