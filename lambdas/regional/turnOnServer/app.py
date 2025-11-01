@@ -84,8 +84,9 @@ aws lambda invoke --function-name "$REPORT_LAMBDA_NAME" \
 EOF
 
 chmod +x /usr/local/bin/report.sh
-(crontab -l 2>/dev/null; echo "*/10 * * * * /usr/local/bin/report.sh") | crontab -
-
+set +e
+HOME=/root (crontab -l 2>/dev/null; echo "*/10 * * * * /usr/local/bin/report.sh") | crontab -
+set -e
 
 # Start as ec2-user (not root)
 sudo -u ec2-user java {server_flags} -jar server.jar nogui
