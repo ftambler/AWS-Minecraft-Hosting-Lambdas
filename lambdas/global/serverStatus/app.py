@@ -6,14 +6,15 @@ from decimal import Decimal
 
 # ENV: REGION, TABLE_NAME
 
+dynamodb = boto3.resource("dynamodb", region_name=os.environ['REGION'])
+table = dynamodb.Table(os.environ["TABLE_NAME"])
+
 def lambda_handler(event, context):
     user_email = event.get("owner")
 
     if not user_email:
         return {"statusCode": 400, "body": "Missing 'owner' in request"}
 
-    dynamodb = boto3.resource("dynamodb", region_name=os.environ['REGION'])
-    table = dynamodb.Table(os.environ["TABLE_NAME"])
 
     try:
         response = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": "SERVER"})
