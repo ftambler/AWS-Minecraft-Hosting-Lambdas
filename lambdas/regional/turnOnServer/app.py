@@ -85,7 +85,7 @@ EOF
 
 chmod +x /usr/local/bin/report.sh
 set +e
-HOME=/root (crontab -l 2>/dev/null; echo "*/10 * * * * /usr/local/bin/report.sh") | crontab -
+bash -c '(crontab -l 2>/dev/null; echo "*/10 * * * * /usr/local/bin/report.sh") | crontab -'
 set -e
 
 # Start as ec2-user (not root)
