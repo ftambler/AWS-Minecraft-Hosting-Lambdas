@@ -2,16 +2,14 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-# ENV GLOBAL_REGION, EFS_ID, SECURITY_GROUP_ID, SUBNET_ID
+# ENV GLOBAL_REGION, EFS_ID, SECURITY_GROUP_ID, SUBNET_ID, CREDIT_DEDUCTION_LAMBDA
+
+ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
+dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
+ec2 = boto3.client('ec2', region_name=os.environ["REGION"])
 
 def lambda_handler(event, context):
     user_email = event['owner']
-    region = os.environ["REGION"]
-
-    # Clients
-    ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
-    dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
-    ec2 = boto3.client('ec2', region_name=region)
 
     # Table
     table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
@@ -47,7 +45,7 @@ def lambda_handler(event, context):
     subnet = os.getenv("SUBNET_ID")
 
     # Get latest Amazon Linux 2023 AMI
-    image_id = get_latest_ami(region)
+    image_id = get_latest_ami()
 
     # Build user data
     user_data = f"""#!/bin/bash
@@ -62,12 +60,27 @@ def lambda_handler(event, context):
 
         # Make sure everything under the server folder is writable
         chmod -R 777 /mnt/efs/{serverUUID} || true
-
-        # Go into that folder and start the Minecraft server
         cd /mnt/efs/{serverUUID}
-
-        # Delete stale lock if any
         rm -f world/session.lock || true
+
+        # --- Reporting setup ---
+        echo "OWNER_UUID={user_email}" >> /etc/environment
+        echo "INSTANCE_TYPE={server_type}" >> /etc/environment
+        echo "REPORT_LAMBDA_NAME={os.environ['CREDIT_DEDUCTION_LAMBDA']}" >> /etc/environment
+
+        cat <<'EOF' > /usr/local/bin/report.sh
+        #!/bin/bash
+        set -e
+        source /etc/environment
+        aws lambda invoke --function-name "$REPORT_LAMBDA_NAME" \
+            --invocation-type Event \
+            --payload "{{\\"owner\\":\\"$OWNER_UUID\\",\\"instanceType\\":\\"$INSTANCE_TYPE\\"}}" \
+            /dev/null
+        EOF
+
+        chmod +x /usr/local/bin/report.sh
+        (crontab -l 2>/dev/null; echo "*/10 * * * * /usr/local/bin/report.sh") | crontab -
+
 
         # Start as ec2-user (not root)
         sudo -u ec2-user java {server_flags} -jar server.jar nogui
@@ -105,8 +118,7 @@ def lambda_handler(event, context):
         instance_id = response['Instances'][0]['InstanceId']
 
         # Wait until running and get IP
-        ec2_resource = boto3.resource('ec2', region_name=region)
-        instance = ec2_resource.Instance(instance_id)
+        instance = ec2.Instance(instance_id)
         instance.wait_until_running()
         instance.load()
         public_ip = instance.public_ip_address
@@ -116,7 +128,7 @@ def lambda_handler(event, context):
             "SK": f"SERVER",
             "status": "RUNNING",
             "InstanceId": instance_id,
-            "Region": region,
+            "Region": os.environ["REGION"],
             "PublicIp": instance.public_ip_address,
             "LaunchedAt": instance.launch_time.isoformat()
         })
@@ -180,8 +192,7 @@ def getSubnet(region: str):
     return subnet_id
 
 
-def get_latest_ami(region: str):
-    ssm = boto3.client('ssm', region_name=region)
+def get_latest_ami():
     # AWS publishes a parameter for the latest Amazon Linux 2023 AMI
     param = ssm.get_parameter(Name="/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
     return param['Parameter']['Value']
