@@ -51,10 +51,10 @@ Resources:
       GroupDescription: Allow EC2/Lambda/EFS access
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 2049
-          ToPort: 2049
-          SourceSecurityGroupId: !Ref SecurityGroup
+        # - IpProtocol: tcp
+        #   FromPort: 2049
+        #   ToPort: 2049
+        #   CidrIp: 0.0.0.0/0  # NFS
         - IpProtocol: tcp
           FromPort: 25565
           ToPort: 25565
@@ -62,6 +62,15 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ServerPipelineSG-${AWS::Region}
+
+  SelfIngress2049:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroup
+      IpProtocol: tcp
+      FromPort: 2049
+      ToPort: 2049
+      SourceSecurityGroupId: !Ref SecurityGroup
 
   # --- Internet Gateway & Routing ---
   InternetGateway:
