@@ -192,6 +192,7 @@ Resources:
           - content-type
         # AllowCredentials: true
       Auth:
+        DefaultAuthorizer: CognitoJwt
         Authorizers:
           CognitoJwt:
             JwtConfiguration:
