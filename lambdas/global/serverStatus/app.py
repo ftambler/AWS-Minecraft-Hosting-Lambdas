@@ -10,14 +10,9 @@ dynamodb = boto3.resource("dynamodb", region_name=os.environ['REGION'])
 table = dynamodb.Table(os.environ["TABLE_NAME"])
 
 def lambda_handler(event, context):
-    body_raw = event.get("body", "{}")
-    
-    try:
-        body = json.loads(body_raw)
-    except json.JSONDecodeError:
-        body = {}
+    query = event.get("queryStringParameters") or {}
 
-    user_email = body.get("owner")
+    user_email = query.get("owner")
 
     if not user_email:
         return {"statusCode": 400, "body": "Missing 'owner' in request"}
