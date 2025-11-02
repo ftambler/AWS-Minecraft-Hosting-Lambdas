@@ -4,11 +4,17 @@ import os
 
 #ENV: QUEUE_URL
 
+sqs = boto3.client('sqs')
+
 def lambda_handler(event, context):    
-    sqs = boto3.client('sqs')
+    body_raw = event.get("body", "{}")
     
-    sqs_url = os.getenv('QUEUE_URL')
-    operation = event.get('operation')
+    try:
+        body = json.loads(body_raw)
+    except json.JSONDecodeError:
+        body = {}
+
+    operation = body.get('operation')
 
     if not operation:
         return {'statusCode': 400, 'body': json.dumps('Missing operation field')}
@@ -22,7 +28,7 @@ def lambda_handler(event, context):
 
     # Check all required fields are in the message
     for key in required_keys.get(operation, []):
-        if key not in event:
+        if key not in body:
             return {
                 'statusCode': 400,
                 'body': json.dumps(f"Missing required parameter: {key}")
@@ -34,18 +40,18 @@ def lambda_handler(event, context):
             message_body = {
                 'operation': 'CREATE',
                 'payload': {
-                    'type': event['serverType'],
-                    'version': event['serverVersion'],
-                    'region': event['serverRegion'],
-                    'owner': event['owner'],
-                    'serverName': event['serverName']
+                    'type': body['serverType'],
+                    'version': body['serverVersion'],
+                    'region': body['serverRegion'],
+                    'owner': body['owner'],
+                    'serverName': body['serverName']
                 }
             }
         case 'DELETE' | 'TURNON' | 'TURNOFF':
             message_body = {
                 'operation': operation,
                 'payload': {
-                    'owner': event['owner']
+                    'owner': body['owner']
                 }                
             }
         case _:
@@ -56,11 +62,11 @@ def lambda_handler(event, context):
 
     try:
         sqs.send_message(
-            QueueUrl=sqs_url,
+            QueueUrl=os.environ['QUEUE_URL'],
             MessageBody=json.dumps(message_body),
             MessageAttributes={
                 'Operation': {'DataType': 'String', 'StringValue': operation},
-                'Owner': {'DataType': 'String', 'StringValue': event['owner']}
+                'Owner': {'DataType': 'String', 'StringValue': body['owner']}
             }
         )
         return {
