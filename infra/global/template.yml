@@ -103,7 +103,7 @@ Resources:
           Type: HttpApi
           Properties:
             Path: /serverAction
-            Method: post
+            Method: POST
             ApiId: !Ref ServerHttpApi
             Auth:
               Authorizer: CognitoJwt
