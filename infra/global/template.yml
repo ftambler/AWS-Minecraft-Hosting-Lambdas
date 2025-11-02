@@ -191,7 +191,7 @@ Resources:
         AllowCredentials: true
       Auth:
         DefaultAuthorizer: CognitoJwt
-        AddDefaultAuthorizerToCorsPreflight: false
+        # AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           CognitoJwt:
             JwtConfiguration:
