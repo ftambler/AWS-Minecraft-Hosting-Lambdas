@@ -181,6 +181,12 @@ Resources:
                 uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalOperationSwitch.Arn}/invocations
                 httpMethod: POST
                 type: aws_proxy
+      Cors:
+        AllowMethods: "'GET','POST','PUT','PATCH','DELETE','OPTIONS'"
+        AllowHeaders: "'X-Forwarded-For'"
+        AllowOrigin: "*"
+        MaxAge: "'600'"
+        AllowCredentials: true
 
   # --- Instance Profile
   EC2InstanceProfile:
