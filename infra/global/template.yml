@@ -182,11 +182,9 @@ Resources:
                 httpMethod: POST
                 type: aws_proxy
       Cors:
-        AllowMethods: "'GET','POST','PUT','PATCH','DELETE','OPTIONS'"
-        AllowHeaders: "'X-Forwarded-For'"
-        AllowOrigin: "*"
-        MaxAge: "'600'"
-        AllowCredentials: true
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Forwarded-For'"
+        AllowOrigin: "'*'"
 
   # --- Instance Profile
   EC2InstanceProfile:
