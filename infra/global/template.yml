@@ -104,7 +104,7 @@ Resources:
           Properties:
             Path: /serverAction
             Method: post
-            RestApiId: !Ref ServerHttpApi
+            ApiId: !Ref ServerHttpApi
             Auth:
               Authorizer: CognitoJwt
 
