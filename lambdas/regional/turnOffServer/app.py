@@ -26,12 +26,6 @@ def lambda_handler(event, context):
     try:
         response = ec2.terminate_instances(InstanceIds=[instance_id])
         print(f"Stopping instance {instance_id}...")
-        table.delete_item(
-            Key={
-                "PK": f"USERS#{user_email}",
-                "SK": f"SERVER"
-            }
-        )
     except Exception as e:
         print(f"Error stopping instance {instance_id}: {e}")
 
