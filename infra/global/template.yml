@@ -210,6 +210,20 @@ Resources:
         Variables:
           TABLE_NAME: !Ref ServerTable
           REGION: !Sub ${AWS::Region}
+  
+  BackOfficeCreateResources:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: BackOffice-CreateResources
+      CodeUri: ../../lambdas/global/createResources/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 30
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ServerTable
+          REGION: !Sub ${AWS::Region}
 
   # --- API Gateway (frontend entrypoint)
   ServerHttpApi:
