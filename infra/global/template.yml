@@ -219,6 +219,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - "http://localhost:5173"
+          - "http://mine-hosting-web.s3-website-us-east-1.amazonaws.com"
         AllowMethods:
           - GET
           - POST
