@@ -180,7 +180,7 @@ Resources:
       StageName: Prod
       CorsConfiguration:
         AllowOrigins:
-          - "*"
+          - "http://localhost:5173"
         AllowMethods:
           - GET
           - POST
@@ -188,8 +188,10 @@ Resources:
         AllowHeaders:
           - authorization
           - content-type
+        AllowCredentials: true
       Auth:
         DefaultAuthorizer: CognitoJwt
+        AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           CognitoJwt:
             JwtConfiguration:
