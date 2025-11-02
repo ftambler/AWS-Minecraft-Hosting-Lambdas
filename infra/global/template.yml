@@ -100,11 +100,13 @@ Resources:
           QUEUE_URL: !Ref ServerQueue
       Events:
         ServerAction:
-          Type: Api
+          Type: HttpApi
           Properties:
             Path: /serverAction
             Method: post
-            RestApiId: !Ref ServerApi
+            RestApiId: !Ref ServerHttpApi
+            Auth:
+              Authorizer: CognitoJwt
 
   # (routes operations + regions)
   GlobalOperationSwitch:
@@ -165,21 +167,28 @@ Resources:
           REGION: !Sub ${AWS::Region}
 
   # --- API Gateway (frontend entrypoint)
-  ServerApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      Name: ServerPipelineAPI
-      StageName: Prod
-      Auth:
-        DefaultAuthorizer: CognitoAuth
-        AddDefaultAuthorizerToCorsPreflight: false
-        Authorizers:
-          CognitoAuth:
-            UserPoolArn: !GetAtt MineHostingUserPool.Arn
-      Cors:
-        AllowMethods: [GET, POST, OPTIONS]
-        AllowHeaders: [Content-Type, Authorization, X-Forwarded-For]
-        AllowOrigin: ['*']
+  ServerHttpApi:
+  Type: AWS::Serverless::HttpApi
+  Properties:
+    StageName: Prod
+    CorsConfiguration:
+      AllowOrigins:
+        - "*"
+      AllowMethods:
+        - GET
+        - POST
+        - OPTIONS
+      AllowHeaders:
+        - authorization
+        - content-type
+    Auth:
+      Authorizers:
+        CognitoJwt:
+          JwtConfiguration:
+            Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${MineHostingUserPool}
+            Audience:
+              - !Ref MineHostingUserPoolClientWeb
+          IdentitySource: "$request.header.Authorization"
 
   # --- Instance Profile
   EC2InstanceProfile:
