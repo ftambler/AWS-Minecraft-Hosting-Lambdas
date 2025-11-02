@@ -24,6 +24,11 @@ def lambda_handler(event, context):
     table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
     bucket_name = ssm.get_parameter(Name="/global/s3/minecraft-versions/id")['Parameter']['Value']
 
+    #
+    existing = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": "SERVER"}).get("Item")
+    if existing:
+        return { "statusCode": 409, "body": json.dumps({"error": "Server already exists for this user"})}
+
     # Create Config Profile in DynamoDB
     table = dynamodb.Table(table_name)
     config_item = {

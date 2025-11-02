@@ -162,6 +162,40 @@ Resources:
         Variables:
           TABLE_NAME: !Ref ServerTable
           REGION: !Sub ${AWS::Region}
+      Events:
+        ServerAction:
+          Type: HttpApi
+          Properties:
+            Path: /resources
+            Method: GET
+            PayloadFormatVersion: '1.0'
+            ApiId: !Ref ServerHttpApi
+            Auth:
+              Authorizer: CognitoJwt
+  
+  GlobalGetUserData:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GlobalGetUserData
+      CodeUri: ../../lambdas/global/getUserData/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Role: !Ref LabRoleArn
+      Timeout: 30
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ServerTable
+          REGION: !Sub ${AWS::Region}
+      Events:
+        ServerAction:
+          Type: HttpApi
+          Properties:
+            Path: /me
+            Method: GET
+            PayloadFormatVersion: '1.0'
+            ApiId: !Ref ServerHttpApi
+            Auth:
+              Authorizer: CognitoJwt
   
   SignUpHandler:
     Type: AWS::Serverless::Function

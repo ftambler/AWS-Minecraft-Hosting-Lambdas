@@ -17,7 +17,7 @@ def lambda_handler(event, context):
         return {"statusCode": 400, "body": "Missing 'owner' in request"}
 
     try:
-        response = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": "SERVER"})
+        response = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": "PROFILE"})
         item = response.get("Item")
     except ClientError as e:
         return {"statusCode": 500, "body": f"Error fetching item: {e}"}
