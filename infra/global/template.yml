@@ -105,14 +105,6 @@ Resources:
             Path: /serverAction
             Method: post
             RestApiId: !Ref ServerApi
-        Preflight:
-          Type: Api
-          Properties:
-            Path: /serverAction
-            Method: options
-            RestApiId: !Ref ServerApi
-            Auth:
-              Authorizer: NONE
 
   # (routes operations + regions)
   GlobalOperationSwitch:
