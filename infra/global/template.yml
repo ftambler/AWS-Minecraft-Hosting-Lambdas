@@ -108,6 +108,14 @@ Resources:
             ApiId: !Ref ServerHttpApi
             Auth:
               Authorizer: CognitoJwt
+        Preflight:
+          Type: HttpApi
+          Properties:
+            Path: /serverAction
+            Method: OPTIONS
+            ApiId: !Ref ServerHttpApi
+            Auth:
+              Authorizer: NONE
 
   # (routes operations + regions)
   GlobalOperationSwitch:
@@ -182,7 +190,7 @@ Resources:
         AllowHeaders:
           - authorization
           - content-type
-        AllowCredentials: true
+        # AllowCredentials: true
       Auth:
         Authorizers:
           CognitoJwt:
