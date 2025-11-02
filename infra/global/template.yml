@@ -138,6 +138,16 @@ Resources:
         Variables:
           TABLE_NAME: !Ref ServerTable
           REGION: !Sub ${AWS::Region}
+      Events:
+        ServerAction:
+          Type: HttpApi
+          Properties:
+            Path: /serverStatus
+            Method: GET
+            PayloadFormatVersion: '1.0'
+            ApiId: !Ref ServerHttpApi
+            Auth:
+              Authorizer: CognitoJwt
 
   GlobalGetResources:
     Type: AWS::Serverless::Function
