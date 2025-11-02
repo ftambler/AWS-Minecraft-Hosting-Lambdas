@@ -168,27 +168,27 @@ Resources:
 
   # --- API Gateway (frontend entrypoint)
   ServerHttpApi:
-  Type: AWS::Serverless::HttpApi
-  Properties:
-    StageName: Prod
-    CorsConfiguration:
-      AllowOrigins:
-        - "*"
-      AllowMethods:
-        - GET
-        - POST
-        - OPTIONS
-      AllowHeaders:
-        - authorization
-        - content-type
-    Auth:
-      Authorizers:
-        CognitoJwt:
-          JwtConfiguration:
-            Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${MineHostingUserPool}
-            Audience:
-              - !Ref MineHostingUserPoolClientWeb
-          IdentitySource: "$request.header.Authorization"
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: Prod
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - authorization
+          - content-type
+      Auth:
+        Authorizers:
+          CognitoJwt:
+            JwtConfiguration:
+              Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${MineHostingUserPool}
+              Audience:
+                - !Ref MineHostingUserPoolClientWeb
+            IdentitySource: "$request.header.Authorization"
 
   # --- Instance Profile
   EC2InstanceProfile:
