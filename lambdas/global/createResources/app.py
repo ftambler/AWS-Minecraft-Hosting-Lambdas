@@ -9,9 +9,9 @@ table = dynamodb.Table(os.environ["TABLE_NAME"])
 
 def lambda_handler(event, context):
     try:
-        body = json.loads(event.get("body", "{}"))
-        if not body:
-            return {"statusCode": 400, "body": "Empty body"}
+        body = event.get("body", {})
+        if not isinstance(body, dict):
+            return {"statusCode": 400, "body": "Body must be an object"}
 
         item = {
             "PK": "GLOBAL",
@@ -27,7 +27,6 @@ def lambda_handler(event, context):
 
     except Exception as e:
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
-    
 # Example event
 
 # {
