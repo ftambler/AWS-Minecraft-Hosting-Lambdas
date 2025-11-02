@@ -104,6 +104,7 @@ Resources:
           Properties:
             Path: /serverAction
             Method: POST
+            PayloadFormatVersion: '1.0'
             ApiId: !Ref ServerHttpApi
             Auth:
               Authorizer: CognitoJwt
