@@ -184,7 +184,8 @@ Resources:
           - Content-Type
           - Authorization
           - X-Forwarded-For
-        AllowOrigin: "*"
+        AllowOrigin: 
+          - "*"
 
   # --- Instance Profile
   EC2InstanceProfile:
