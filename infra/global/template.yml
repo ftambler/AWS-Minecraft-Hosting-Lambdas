@@ -175,23 +175,16 @@ Resources:
         Authorizers:
           CognitoAuth:
             UserPoolArn: !GetAtt MineHostingUserPool.Arn
-      # DefinitionBody:
-      #   swagger: "2.0"
-      #   info:
-      #     title: "Server Pipeline API"
-      #   paths:
-      #     /serverAction:
-      #       post:
-      #         security:
-      #           - CognitoAuth: []
-      #         x-amazon-apigateway-integration:
-      #           uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GlobalOperationSwitch.Arn}/invocations
-      #           httpMethod: POST
-      #           type: aws_proxy
       Cors:
-        AllowMethods: "'GET,POST,OPTIONS'"
-        AllowHeaders: "'Content-Type,Authorization,X-Forwarded-For'"
-        AllowOrigin: "'*'"
+        AllowMethods: 
+          - GET
+          - POST 
+          - OPTIONS
+        AllowHeaders: 
+          - Content-Type
+          - Authorization
+          - X-Forwarded-For
+        AllowOrigin: "*"
 
   # --- Instance Profile
   EC2InstanceProfile:
