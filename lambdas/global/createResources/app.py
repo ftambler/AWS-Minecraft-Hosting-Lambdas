@@ -17,14 +17,14 @@ def lambda_handler(event, context):
             {"id": "t2.large", "name": "Grande (11–20 jugadores)"}
         ],
         "versions": [
-            {"id": "1.24", "label": "1.24"},
+            # {"id": "1.24", "label": "1.24"},
             {"id": "1.21.10", "label": "1.21.10"},
-            {"id": "1.20", "label": "1.20"}
+            # {"id": "1.20", "label": "1.20"}
         ],
         "regions": [
             {"id": "us-east-1", "name": "US NORTH"},
-            {"id": "sa-east-1", "name": "SA EAST"},
-            {"id": "eu-west-1", "name": "EU WEST"}
+            # {"id": "sa-east-1", "name": "SA EAST"},
+            # {"id": "eu-west-1", "name": "EU WEST"}
         ]
     }
 
