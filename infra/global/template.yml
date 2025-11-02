@@ -180,6 +180,7 @@ Resources:
       StageName: Prod
       Auth:
         DefaultAuthorizer: CognitoAuth
+        AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           CognitoAuth:
             UserPoolArn: !GetAtt MineHostingUserPool.Arn
