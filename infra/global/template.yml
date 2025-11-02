@@ -225,11 +225,11 @@ Resources:
       Value: !Ref ServerTable
       Description: Global Dynamo Table Name
 
-Outputs:
-  ApiUrl:
-    Description: Global API Gateway endpoint
-    Value: !Sub https://${ServerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/create
-  TableName:
-    Value: !Ref ServerTable
-  QueueUrl:
-    Value: !Ref ServerQueue
+# Outputs:
+#   ApiUrl:
+#     Description: Global API Gateway endpoint
+#     Value: !Sub https://${ServerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/create
+#   TableName:
+#     Value: !Ref ServerTable
+#   QueueUrl:
+#     Value: !Ref ServerQueue
