@@ -114,8 +114,6 @@ Resources:
             Path: /serverAction
             Method: OPTIONS
             ApiId: !Ref ServerHttpApi
-            Auth:
-              Authorizer: NONE
 
   # (routes operations + regions)
   GlobalOperationSwitch:
@@ -190,7 +188,6 @@ Resources:
         AllowHeaders:
           - authorization
           - content-type
-        # AllowCredentials: true
       Auth:
         DefaultAuthorizer: CognitoJwt
         Authorizers:
