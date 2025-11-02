@@ -182,6 +182,7 @@ Resources:
         AllowHeaders:
           - authorization
           - content-type
+        AllowCredentials: true
       Auth:
         Authorizers:
           CognitoJwt:
