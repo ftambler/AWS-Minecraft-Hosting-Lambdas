@@ -15,7 +15,7 @@ def lambda_handler(event, context):
     table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
     table = dynamodb.Table(table_name)
 
-    resp = table.get_item(Key={'PK': f'USER#{user_email}', 'SK': 'PROFILE'})
+    resp = table.get_item(Key={'PK': f'USERS#{user_email}', 'SK': 'PROFILE'})
     item = resp.get('Item')
 
     if not item or item.get('Credits', 0) <= 0:
