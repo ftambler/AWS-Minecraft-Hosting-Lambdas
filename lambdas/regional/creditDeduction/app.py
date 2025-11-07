@@ -8,14 +8,13 @@ from botocore.exceptions import ClientError
 dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
 lambda_client = boto3.client("lambda", region_name=os.environ["GLOBAL_REGION"])
 ssm = boto3.client("ssm", region_name=os.environ["GLOBAL_REGION"])
+# Dynamo
+table_name = ssm.get_parameter(Name="/global/dynamo/table-name")["Parameter"]["Value"]
+table = dynamodb.Table(table_name)
 
 def lambda_handler(event, context):
     owner = event["owner"]
     instance_type = event["instanceType"]
-
-    # Resolve Dynamo table name
-    table_name = ssm.get_parameter(Name="/global/dynamo/table-name")["Parameter"]["Value"]
-    table = dynamodb.Table(table_name)
 
     # Fetch user profile
     try:
@@ -70,9 +69,14 @@ def lambda_handler(event, context):
 
 def calculate_deduction(instance_type: str) -> int:
     """Return credits to deduct per 10-minute interval."""
-    mapping = {
-        "t2.small": 1,
-        "t2.medium": 2,
-        "t2.large": 3,
-    }
-    return mapping.get(instance_type, 1)
+    response = table.get_item(Key={"PK": "GLOBAL", "SK": "RESOURCES"})
+    item = response.get("Item")
+
+    if not item or "types" not in item:
+        return None
+
+    for t in item["types"]:
+        if t.get("id") == instance_type:
+            return t.get("creditCost")
+
+    return 1

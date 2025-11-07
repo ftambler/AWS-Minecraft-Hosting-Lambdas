@@ -7,13 +7,12 @@ from botocore.exceptions import ClientError
 ssm = boto3.client('ssm', region_name=os.environ["GLOBAL_REGION"])
 dynamodb = boto3.resource("dynamodb", region_name=os.environ["GLOBAL_REGION"])
 ec2 = boto3.client('ec2', region_name=os.environ["REGION"])
+# Table
+table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
+table = dynamodb.Table(table_name)
 
 def lambda_handler(event, context):
     user_email = event['owner']
-
-    # Table
-    table_name = ssm.get_parameter(Name="/global/dynamo/table-name")['Parameter']['Value']
-    table = dynamodb.Table(table_name)
 
     resp = table.get_item(Key={'PK': f'USERS#{user_email}', 'SK': 'PROFILE'})
     item = resp.get('Item')
@@ -175,37 +174,27 @@ sudo -u ec2-user java {server_flags} -jar server.jar nogui
 
 
 def getFlags(server_type: str):
-    match server_type:
-        case "t2.small":
-            return "-Xms512M -Xmx1G"
-        case "t2.medium":
-            return "-Xms1G -Xmx2G"
-        case "t2.large":
-            return "-Xms2G -Xmx4G"
-        case _:
-            return "-Xms1G -Xmx2G"
+    response = table.get_item(Key={"PK": "GLOBAL", "SK": "RESOURCES"})
+    item = response.get("Item")
+
+    if not item or "types" not in item:
+        return None
+
+    for t in item["types"]:
+        if t.get("id") == server_type:
+            return t.get("serverFlags")
+
+    return "-Xms512M -Xmx1G"
 
 
 def getSubnet(region: str):
-    ec2 = boto3.client("ec2", region_name=region)
     ssm = boto3.client("ssm", region_name=region)
-
     subnet_param = f"/subnet/{region}/id"
 
     try:
         subnet_id = ssm.get_parameter(Name=subnet_param)["Parameter"]["Value"]
     except ClientError as e:
         raise RuntimeError(f"Failed to get Subnet ID from SSM ({subnet_param}): {e}")
-
-    # Validate the subnet actually exists in this region
-    try:
-        response = ec2.describe_subnets(SubnetIds=[subnet_id])
-        subnets = response.get("Subnets", [])
-    except ClientError as e:
-        raise RuntimeError(f"Failed to describe Subnets: {e}")
-
-    if not subnets:
-        raise RuntimeError(f"Subnet not found: {subnet_id} in {region}")
 
     return subnet_id
 

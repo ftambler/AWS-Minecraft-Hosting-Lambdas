@@ -32,9 +32,9 @@ def lambda_handler(event, context):
 # {
 #   "body": {
 #       "types":[
-#             {"id":"t2.small","name":"Chico (2–4 jugadores)"},
-#             {"id":"t2.medium","name":"Mediano (5–10 jugadores)"},
-#             {"id":"t2.large","name":"Grande (11–20 jugadores)"}
+#             {"id":"t2.small","name":"Chico (2–4 jugadores)", "serverFlags": "-Xms512M -Xmx1G", "creditCost": 1},
+#             {"id":"t2.medium","name":"Mediano (5–10 jugadores)", "serverFlags": "-Xms1G -Xmx2G", "creditCost": 3},
+#             {"id":"t2.large","name":"Grande (11–20 jugadores)", "serverFlags": "-Xms2G -Xmx4G", "creditCost": 2}
 #         ],
 #         "versions":[
 #             {"id":"1.24","label":"1.24"},
