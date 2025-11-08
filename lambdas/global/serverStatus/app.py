@@ -17,22 +17,19 @@ def lambda_handler(event, context):
         return {"statusCode": 400, "body": "Missing 'owner' in request"}
 
     try:
-        response = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": "SERVER"})
-        item = response.get("Item")
+        config = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": "CONFIGPROFILE"})
+        server = table.get_item(Key={"PK": f"USERS#{user_email}", "SK": "SERVER"})
+        config_item = config.get("Item")
+        server_item = server.get("Item")
     except ClientError as e:
         return {"statusCode": 500, "body": f"Error fetching item: {e}"}
 
-    if not item:
+    if not config_item or not server_item:
         return {"statusCode": 404, "body": "No server found for this user"}
 
-    def clean(obj):
-        if isinstance(obj, list):
-            return [clean(i) for i in obj]
-        if isinstance(obj, dict):
-            return {k: clean(v) for k, v in obj.items() if k not in ("PK", "SK")}
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return obj
+    
+    server_status = config_item | server_item
+    server_status.pop('PK')
+    server_status.pop('SK')
 
-    item = clean(item)
-    return {"statusCode": 200, "body": json.dumps(item)}
+    return {"statusCode": 200, "body": json.dumps(server_status, default=str)}
