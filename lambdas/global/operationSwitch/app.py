@@ -11,8 +11,8 @@ def lambda_handler(event, context):
             body = json.loads(body)
 
         operation = body.get("operation")
-        region = body.get("region", "us-east-1")
         payload = body.get("payload", {})
+        region = payload.get("region", "us-east-1")
 
         # Construct name dynamically
         function_base = {
