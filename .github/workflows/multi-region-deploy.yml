@@ -15,7 +15,7 @@ jobs:
 
     env:
       GLOBAL_REGION: ${{ secrets.AWS_REGION }}   # main region (us-east-1)
-      REGIONAL_REGIONS: "us-east-1"    # space-separated list of regions
+      REGIONAL_REGIONS: "us-east-1 us-west-2"    # space-separated list of regions
 
     steps:
       # === Checkout code ===
