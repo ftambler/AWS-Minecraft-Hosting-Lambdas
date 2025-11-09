@@ -98,6 +98,8 @@ Resources:
       Environment:
         Variables:
           QUEUE_URL: !Ref ServerQueue
+          TABLE_NAME: !Ref ServerTable
+          REGION: !Sub ${AWS::Region}
       Events:
         ServerAction:
           Type: HttpApi
@@ -118,7 +120,7 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.11
       Role: !Ref LabRoleArn
-      Timeout: 30
+      Timeout: 30         
       Events:
         SQSTrigger:
           Type: SQS

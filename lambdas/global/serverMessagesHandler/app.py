@@ -1,11 +1,16 @@
 import boto3
 import json
 import os
+from botocore.exceptions import ClientError
 
 #ENV: QUEUE_URL
 
 sqs = boto3.client('sqs')
+#ENV: REGION, TABLE_NAME
 
+dynamodb = boto3.resource("dynamodb", region_name=os.environ['REGION'])
+table = dynamodb.Table(os.environ["TABLE_NAME"])
+        
 def lambda_handler(event, context):    
     body_raw = event.get("body", "{}")
     
@@ -48,10 +53,15 @@ def lambda_handler(event, context):
                 }
             }
         case 'DELETE' | 'TURNON' | 'TURNOFF':
+            try:
+                region = table.get_item(Key={"PK": f"USERS#{body.get('owner')}", "SK": "CONFIGPROFILE"}).get('Item').get('Region')
+            except ClientError as e:
+                return {"statusCode": 500, "body": f"Error fetching item: {e}"}
             message_body = {
                 'operation': operation,
                 'payload': {
-                    'owner': body['owner']
+                    'owner': body['owner'],
+                    'region': region
                 }                
             }
         case _:
