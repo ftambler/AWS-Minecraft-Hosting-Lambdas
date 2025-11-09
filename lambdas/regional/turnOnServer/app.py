@@ -198,5 +198,6 @@ def getSubnet(region: str):
 
 def get_latest_ami():
     # AWS publishes a parameter for the latest Amazon Linux 2023 AMI
-    param = ssm.get_parameter(Name="/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
+    regional_ssm = boto3.client('ssm', region_name=os.environ["REGION"])
+    param = regional_ssm.get_parameter(Name="/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64")
     return param['Parameter']['Value']
