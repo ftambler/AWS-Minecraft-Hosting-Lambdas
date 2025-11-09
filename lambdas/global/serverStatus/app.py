@@ -27,9 +27,24 @@ def lambda_handler(event, context):
     if not config_item or not server_item:
         return {"statusCode": 404, "body": "No server found for this user"}
 
-    
+    try:
+        resources = table.get_item(Key={"PK": "GLOBAL", "SK": "RESOURCES"}).get("Item")
+    except ClientError as e:
+        return {"statusCode": 500, "body": f"Error fetching item: {e}"}
+
+    config_item['Type'] = getResourceName(resources.get('types'), config_item['Type'])
+    config_item['Region'] = getResourceName(resources.get('regions'), config_item['Region'])
+
     server_status = config_item | server_item
     server_status.pop('PK')
     server_status.pop('SK')
 
     return {"statusCode": 200, "body": json.dumps(server_status, default=str)}
+
+
+def getResourceName(resources, id):
+    for t in resources:
+        if t.get("id") == id:
+            return t.get("name")
+
+    return id
